@@ -1,0 +1,131 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  html, body, #root {
+    height: 100%;
+  }
+
+  body {
+    @apply antialiased text-gray-900 bg-white;
+  }
+}
+
+/* Custom Scrollbar hide but allow scroll if needed, though Pinterest uses default often or custom slim one. 
+   For now, keep standard browser scrollbar or customize lightly. */
+
+:root {
+  --ui-bg: #ffffff;
+  --ui-text: #0f172a;
+  --ui-surface: #ffffff;
+  --ui-surface-muted: #f4f5f7;
+  --ui-surface-strong: #eef0f3;
+  --ui-border: #e5e7eb;
+  --ui-muted: #6b7280;
+  --ui-accent: #e60023;
+  --ui-accent-strong: #ad081b;
+}
+
+:root[data-color-mode="dark"] {
+  color-scheme: dark;
+  --ui-bg: #0b0f14;
+  --ui-text: #e2e8f0;
+  --ui-surface: #121821;
+  --ui-surface-muted: #151d27;
+  --ui-surface-strong: #1c2633;
+  --ui-border: #2a3645;
+  --ui-muted: #94a3b8;
+}
+
+:root[data-ui-theme="sunset"] {
+  --ui-accent: #f97316;
+  --ui-accent-strong: #ea580c;
+}
+
+:root[data-ui-theme="ocean"] {
+  --ui-accent: #0ea5e9;
+  --ui-accent-strong: #0284c7;
+}
+
+:root[data-ui-theme="mint"] {
+  --ui-accent: #10b981;
+  --ui-accent-strong: #059669;
+}
+
+body {
+  background-color: var(--ui-bg);
+  color: var(--ui-text);
+}
+
+:root[data-color-mode="dark"] .bg-white {
+  background-color: var(--ui-surface) !important;
+}
+
+:root[data-color-mode="dark"] .bg-gray-50 {
+  background-color: var(--ui-surface-muted) !important;
+}
+
+:root[data-color-mode="dark"] .bg-gray-100 {
+  background-color: var(--ui-surface-strong) !important;
+}
+
+:root[data-color-mode="dark"] .bg-gray-200 {
+  background-color: #243041 !important;
+}
+
+:root[data-color-mode="dark"] .bg-blue-50 {
+  background-color: #0b1a2e !important;
+}
+
+:root[data-color-mode="dark"] .bg-red-100 {
+  background-color: #3a1315 !important;
+}
+
+:root[data-color-mode="dark"] .bg-white\/80 {
+  background-color: rgba(15, 23, 42, 0.8) !important;
+}
+
+:root[data-color-mode="dark"] .text-gray-900,
+:root[data-color-mode="dark"] .text-black {
+  color: var(--ui-text) !important;
+}
+
+:root[data-color-mode="dark"] .text-gray-800 {
+  color: #d6e0ee !important;
+}
+
+:root[data-color-mode="dark"] .text-gray-700 {
+  color: #cbd5e1 !important;
+}
+
+:root[data-color-mode="dark"] .text-gray-600,
+:root[data-color-mode="dark"] .text-gray-500 {
+  color: var(--ui-muted) !important;
+}
+
+:root[data-color-mode="dark"] .text-gray-400 {
+  color: #7c889f !important;
+}
+
+:root[data-color-mode="dark"] .border-gray-100,
+:root[data-color-mode="dark"] .border-gray-200,
+:root[data-color-mode="dark"] .border-gray-300 {
+  border-color: var(--ui-border) !important;
+}
+
+:root[data-color-mode="dark"] .hover\:bg-gray-100:hover {
+  background-color: #1c2633 !important;
+}
+
+:root[data-color-mode="dark"] .hover\:bg-gray-200:hover {
+  background-color: #243041 !important;
+}
+
+:root .bg-\[\#E60023\] {
+  background-color: var(--ui-accent) !important;
+}
+
+:root .hover\:bg-\[\#ad081b\]:hover {
+  background-color: var(--ui-accent-strong) !important;
+}
