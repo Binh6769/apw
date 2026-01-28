@@ -1,73 +1,123 @@
-# React + TypeScript + Vite
+# 📌 Pinterest Clone (APW)
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+A Pinterest-like web application for discovering, saving, and sharing visual content. Built with React 19, TypeScript, and Supabase.
 
-Currently, two official plugins are available:
+![React](https://img.shields.io/badge/React-19-61DAFB?logo=react)
+![TypeScript](https://img.shields.io/badge/TypeScript-5.9-3178C6?logo=typescript)
+![Vite](https://img.shields.io/badge/Vite-7-646CFF?logo=vite)
+![Supabase](https://img.shields.io/badge/Supabase-Backend-3FCF8E?logo=supabase)
+![TailwindCSS](https://img.shields.io/badge/TailwindCSS-3.4-06B6D4?logo=tailwindcss)
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Babel](https://babeljs.io/) (or [oxc](https://oxc.rs) when used in [rolldown-vite](https://vite.dev/guide/rolldown)) for Fast Refresh
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/) for Fast Refresh
+## ✨ Features
 
-## React Compiler
+- 🔐 **Authentication** - Email/password login & signup with Supabase Auth
+- 🏠 **Home Feed** - Pinterest-style masonry grid layout
+- 📌 **Pin Management** - Create, view, and save pins
+- 👤 **User Profiles** - Customizable avatars and profile settings
+- 📁 **Photo Albums** - Organize saved pins into collections
+- 💬 **Comments** - Comment on pins
+- 🔄 **Image Sync** - Consistent image display across navigation
+- 📱 **Responsive** - Mobile-first design
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+## 🛠️ Tech Stack
 
-## Expanding the ESLint configuration
+| Layer | Technology |
+|-------|------------|
+| Frontend | React 19, TypeScript, Vite |
+| Styling | TailwindCSS |
+| State | React Context, TanStack Query |
+| Routing | React Router 7 |
+| Backend | Supabase (Auth, Database, Storage) |
+| Icons | Lucide React |
 
-If you are developing a production application, we recommend updating the configuration to enable type-aware lint rules:
+## 🚀 Getting Started
 
-```js
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
+### Prerequisites
+- Node.js 18+
+- npm or yarn
+- Supabase account (free tier works)
 
-      // Remove tseslint.configs.recommended and replace with this
-      tseslint.configs.recommendedTypeChecked,
-      // Alternatively, use this for stricter rules
-      tseslint.configs.strictTypeChecked,
-      // Optionally, add this for stylistic rules
-      tseslint.configs.stylisticTypeChecked,
+### Installation
 
-      // Other configs...
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
+```bash
+# Clone repository
+git clone <repo-url>
+cd apw
+
+# Install dependencies
+npm install
+
+# Create environment file
+cp .env.example .env.local
 ```
 
-You can also install [eslint-plugin-react-x](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-x) and [eslint-plugin-react-dom](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-dom) for React-specific lint rules:
+### Environment Variables
 
-```js
-// eslint.config.js
-import reactX from 'eslint-plugin-react-x'
-import reactDom from 'eslint-plugin-react-dom'
+Create `.env.local` with your Supabase credentials:
 
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-      // Enable lint rules for React
-      reactX.configs['recommended-typescript'],
-      // Enable lint rules for React DOM
-      reactDom.configs.recommended,
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
+```env
+VITE_SUPABASE_URL=https://your-project.supabase.co
+VITE_SUPABASE_ANON_KEY=your-anon-key-here
 ```
+
+### Development
+
+```bash
+npm run dev
+```
+
+Open http://localhost:5173
+
+### Build
+
+```bash
+npm run build
+npm run preview  # Test production build
+```
+
+## 📁 Project Structure
+
+```
+src/
+├── api/          # External API clients (Unsplash)
+├── components/   # Reusable UI components
+├── contexts/     # React Context providers
+├── hooks/        # Custom React hooks
+├── pages/        # Route page components
+├── services/     # Backend service layer
+├── types/        # TypeScript definitions
+└── App.tsx       # Main app component
+```
+
+## 📖 Documentation
+
+Detailed documentation available in [`docs/`](./docs/):
+
+- [Project Overview](./docs/project-overview-pdr.md)
+- [System Architecture](./docs/system-architecture.md)
+- [Codebase Summary](./docs/codebase-summary.md)
+- [Deployment Guide](./docs/deployment-guide.md)
+- [Database Schema](./docs/database/schema.md)
+
+### Feature Documentation
+- [Authentication](./docs/features/authentication.md)
+- [Avatar System](./docs/features/avatar-system.md)
+- [Image Sync](./docs/features/image-sync.md)
+
+## 🧪 Scripts
+
+| Command | Description |
+|---------|-------------|
+| `npm run dev` | Start development server |
+| `npm run build` | Build for production |
+| `npm run preview` | Preview production build |
+| `npm run lint` | Run ESLint |
+| `npm run test` | Run tests |
+
+## 📝 License
+
+MIT License - feel free to use for learning and portfolio purposes.
+
+---
+
+Built with ❤️ as a learning project
