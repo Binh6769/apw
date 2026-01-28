@@ -29,19 +29,30 @@ function MasonryGridComponent({ photos, onPinClick, onPinDelete }: MasonryGridPr
         ? 'py-6'
         : 'py-4';
 
+  const uniquePhotos = useMemo(() => {
+    const seen = new Set<string>();
+    return photos.filter((photo) => {
+      const key = (photo as any)._imageId || photo.id;
+      if (seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    });
+  }, [photos]);
+
   // Optimize loaded tracking
   useEffect(() => {
     if (loadedIds.size === 0) return;
     const next = new Set<string>();
-    for (const photo of photos) {
-      if (loadedIds.has(photo.id)) {
-        next.add(photo.id);
+    for (const photo of uniquePhotos) {
+      const key = (photo as any)._imageId || photo.id;
+      if (loadedIds.has(key)) {
+        next.add(key);
       }
     }
     if (next.size !== loadedIds.size) {
       setLoadedIds(next);
     }
-  }, [photos, loadedIds]);
+  }, [uniquePhotos, loadedIds]);
 
   const handleImageLoad = useCallback((id: string) => {
     setLoadedIds((prev) => {
@@ -54,28 +65,34 @@ function MasonryGridComponent({ photos, onPinClick, onPinDelete }: MasonryGridPr
 
   // Memoize ordered photos to prevent unnecessary recalculations
   const orderedPhotos = useMemo(() => {
-    if (photos.length === 0) return [];
-    if (loadedIds.size === 0) return photos;
+    if (uniquePhotos.length === 0) return [];
+    if (loadedIds.size === 0) return uniquePhotos;
     
     const loaded: Photo[] = [];
     const pending: Photo[] = [];
     
-    for (const photo of photos) {
-      if (loadedIds.has(photo.id)) {
+    for (const photo of uniquePhotos) {
+      const key = (photo as any)._imageId || photo.id;
+      if (loadedIds.has(key)) {
         loaded.push(photo);
       } else {
         pending.push(photo);
       }
     }
     return [...loaded, ...pending];
-  }, [photos, loadedIds]);
+  }, [photos, uniquePhotos, loadedIds]);
 
   // Compute masonry columns via hook (already memoized internally)
   const columns = useMasonry(orderedPhotos, columnCount);
 
-  // Memoize callback to prevent child re-renders
-  const memoizedOnPinClick = useCallback(onPinClick, [onPinClick]);
-  const memoizedOnPinDelete = useCallback(onPinDelete, [onPinDelete]);
+  // Memoize callbacks to prevent child re-renders while preserving types
+  const memoizedOnPinClick = useCallback((photo: Photo) => onPinClick(photo), [onPinClick]);
+  const memoizedOnPinDelete = useCallback(
+    (photo: Photo) => {
+      if (onPinDelete) onPinDelete(photo);
+    },
+    [onPinDelete]
+  );
 
   return (
     <div className={clsx("flex justify-center px-2 md:px-4 w-full max-w-[2000px] mx-auto", densityGap, densityPadding)}>

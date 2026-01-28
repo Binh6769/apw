@@ -1,7 +1,7 @@
 import axios from 'axios';
 import type { Photo } from '../types';
 import { generateMockPhotos } from '../data/mockData';
-import { fetchPinsFromSupabase } from '../services/pinsService';
+import { fetchPinById, fetchPinsFromSupabase } from '../services/pinsService';
 
 // Interfaces
 interface JikanAnime {
@@ -109,6 +109,10 @@ const getWaifuTags = (query: string) => {
   const tags = TOPIC_TAGS[normalized] || ['waifu'];
   return tags.filter(Boolean);
 };
+
+const isLikelyImageId = (value: string) =>
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(value) ||
+  /^(mal|art|top|unsplash|pexels|pixabay|mock|pin|local)-/i.test(value);
 
 // MOCK DATA for Fallback - Initial set
 const getFallbackPhotos = (page: number, query: string = ''): Photo[] => {
@@ -502,57 +506,69 @@ export const fetchPhotoById = async (id: string): Promise<Photo | null> => {
   }
 };
 
-// Fetch Related Photos - Smart search based on photo description
-const sortByAspectRatioSimilarity = (items: Photo[], target?: Photo) => {
-  if (!target?.width || !target?.height) return items;
-  const targetRatio = target.height / target.width;
-  return [...items].sort((a, b) => {
-    const aRatio = a.height && a.width ? a.height / a.width : targetRatio;
-    const bRatio = b.height && b.width ? b.height / b.width : targetRatio;
-    return Math.abs(aRatio - targetRatio) - Math.abs(bRatio - targetRatio);
-  });
-};
-
-export const fetchRelatedPhotos = async (_id: string, photo?: Photo): Promise<Photo[]> => {
+export const fetchRelatedPhotos = async (
+  _id: string,
+  photo?: Photo,
+  page: number = 1,
+  pageSize: number = 30,
+  seenIds: Set<string> = new Set()
+): Promise<{ items: Photo[]; hasMore: boolean }> => {
   try {
-    // Extract search terms from photo description or alt text
     let searchQuery = '';
     
     if (photo?.alt_description) {
-      // Extract meaningful keywords (first 2-3 words are usually most relevant)
       const words = photo.alt_description.split(' ').slice(0, 3).join(' ');
       searchQuery = words || 'photography';
     }
     
-    // If no description, use a default search
     if (!searchQuery) {
       searchQuery = 'photography';
     }
     
-    // Fetch a larger pool (two pages) and merge for richer suggestions like the homepage
-    const [page1, page2] = await Promise.all([
-      fetchPhotos(1, searchQuery),
-      fetchPhotos(2, searchQuery),
+    const [page1, page2, page3] = await Promise.all([
+      fetchPhotos(page, searchQuery),
+      fetchPhotos(page + 1, searchQuery),
+      fetchPhotos(page + 2, searchQuery),
     ]);
 
-    const combined = mergeUnique(page1, page2);
-    const withoutCurrent = combined.filter(p => p.id !== _id);
+    const combinedPool = mergeUnique(page1, page2, page3);
+    const withoutCurrent = combinedPool.filter(p => p.id !== _id && !seenIds.has(p.id));
 
-    // Prioritize items that look most similar (aspect ratio) so the first tiles load near the top
-    const prioritized = sortByAspectRatioSimilarity(withoutCurrent, photo);
+    const targetRatio = photo?.width ? (photo.height || photo.width) / photo.width : 1;
+    const scorePhoto = (p: Photo) => {
+      const ratio = p.width ? (p.height || p.width) / p.width : targetRatio;
+      const ratioPenalty = Math.abs(ratio - targetRatio);
+      const area = (p.width || 1) * (p.height || 1);
+      return ratioPenalty * 1000 + area / 1_000_000;
+    };
 
-    // Return more items (up to 40) to match the home feed density
-    return prioritized.slice(0, 40);
+    const prioritized = [...withoutCurrent].sort((a, b) => scorePhoto(a) - scorePhoto(b));
+
+    const start = (page - 1) * pageSize;
+    const items = prioritized.slice(start, start + pageSize);
+    const hasMore = prioritized.length > start + pageSize;
+
+    return { items, hasMore };
   } catch (error) {
     console.error("Fetch Related Photos Error:", error);
-    // Return empty array instead of generic photos
-    return [];
+    return { items: [], hasMore: false };
   }
 };
 
 // Main Export - Now checks Supabase first, then falls back to external APIs
 export const fetchPhotos = async (page: number = 1, query: string = ''): Promise<Photo[]> => {
   try {
+    if (query && isLikelyImageId(query) && page === 1) {
+      const [pinMatch, externalMatch] = await Promise.all([
+        fetchPinById(query).catch(() => null),
+        fetchPhotoById(query).catch(() => null),
+      ]);
+      const resolved = pinMatch || externalMatch;
+      if (resolved) {
+        return [resolved];
+      }
+    }
+
     // First, try to get data from Supabase
     const supabasePins = await fetchPinsFromSupabase(page, 20, query);
     

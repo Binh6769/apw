@@ -1,8 +1,8 @@
 import { useLocation, useNavigate, useParams } from 'react-router-dom';
-import { useQuery } from '@tanstack/react-query';
+import { useInfiniteQuery, useQuery } from '@tanstack/react-query';
 import { fetchPhotoById, fetchRelatedPhotos } from '../api/unsplash';
 import { fetchPinById } from '../services/pinsService';
-import { ArrowLeft, MoreHorizontal, Share, Download, Heart, Trash2 } from 'lucide-react';
+import { ArrowLeft, MoreHorizontal, Share, Download, Heart, Trash2, ThumbsUp } from 'lucide-react';
 import { useSavedPins } from '../hooks/useSavedPins';
 import { useToast } from '../hooks/useToast';
 import { useComments } from '../hooks/useComments';
@@ -11,10 +11,11 @@ import { useImageHistory } from '../hooks/useImageHistory';
 import { MasonryGrid } from '../components/MasonryGrid';
 import { Header } from '../components/Header'; // Added Header import
 import clsx from 'clsx';
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { deletePin } from '../services/pinsService';
 import { usePhotoAlbums } from '../hooks/usePhotoAlbums';
 import { addPhotoToAlbum, removePhotoFromAlbum } from '../services/photoAlbumService';
+import { fetchReactions, toggleReaction } from '../services/reactionsService';
 
 interface PinDetailWrapperProps {
   isModal: boolean;
@@ -67,8 +68,12 @@ export function PinDetail() {
   const [newAlbumName, setNewAlbumName] = useState('');
   const [commentText, setCommentText] = useState('');
   const [isDeleting, setIsDeleting] = useState(false);
+  const [reactions, setReactions] = useState({ likes: 0, loves: 0, isLiked: false, isLoved: false });
+  const [loadingReactions, setLoadingReactions] = useState(false);
   const albumId = location.state?.albumId as string | undefined;
   const albumPhotoId = location.state?.albumPhotoId as string | undefined;
+  const relatedObserverRef = useRef<HTMLDivElement | null>(null);
+  const seenRelatedIds = useRef<Set<string>>(new Set());
   
   // Check if we are in a modal
   const isModal = !!location.state?.background;
@@ -102,6 +107,15 @@ export function PinDetail() {
       recordView(photo, 'unsplash');
     }
   }, [photo?.id, user?.id]);
+
+  useEffect(() => {
+    if (!id) return;
+    setLoadingReactions(true);
+    fetchReactions(id)
+      .then(setReactions)
+      .catch((error) => console.error('Failed to load reactions', error))
+      .finally(() => setLoadingReactions(false));
+  }, [id, user?.id]);
   
   const { comments, addComment, deleteComment } = useComments(photo?.id || '');
   
@@ -110,14 +124,50 @@ export function PinDetail() {
   // Check if user is the pin creator
   const isUserPin = photo?.user?.username === user?.id || photo?.id?.startsWith('local-');
 
-  // Fetch Related Photos - with optimization
-  const { data: relatedPhotos, isLoading: isRelatedLoading } = useQuery({
+  const {
+    data: relatedPages,
+    fetchNextPage,
+    hasNextPage,
+    isFetchingNextPage,
+    status: relatedStatus,
+  } = useInfiniteQuery({
     queryKey: ['related', id],
-    queryFn: () => photo ? fetchRelatedPhotos(id || '', photo) : Promise.resolve([]),
+    queryFn: ({ pageParam = 1 }) =>
+      photo ? fetchRelatedPhotos(id || '', photo, pageParam, 24, seenRelatedIds.current) : Promise.resolve({ items: [], hasMore: false }),
+    getNextPageParam: (lastPage, pages) => (lastPage.hasMore ? pages.length + 1 : undefined),
+    initialPageParam: 1,
     enabled: !!id && !!photo,
-    staleTime: 5 * 60 * 1000, // Cache for 5 minutes
-    gcTime: 10 * 60 * 1000, // Garbage collect after 10 minutes
+    staleTime: 5 * 60 * 1000,
+    gcTime: 10 * 60 * 1000,
   });
+
+  const relatedPhotos = useMemo(() => {
+    const combined = relatedPages?.pages.flatMap((page) => page.items) || [];
+    const dedup = new Map<string, any>();
+    combined.forEach((item) => {
+      if (!dedup.has(item.id)) {
+        dedup.set(item.id, { ...item, _imageId: item.id });
+      }
+    });
+    seenRelatedIds.current = new Set(dedup.keys());
+    return Array.from(dedup.values());
+  }, [relatedPages]);
+
+  useEffect(() => {
+    const el = relatedObserverRef.current;
+    if (!el) return;
+    const observer = new IntersectionObserver(
+      (entries) => {
+        const [entry] = entries;
+        if (entry.isIntersecting && hasNextPage && !isFetchingNextPage) {
+          fetchNextPage();
+        }
+      },
+      { rootMargin: '600px' }
+    );
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, [hasNextPage, isFetchingNextPage, fetchNextPage]);
 
   const handleBack = () => {
     navigate(-1);
@@ -131,6 +181,34 @@ export function PinDetail() {
     } else {
       savePin(photo);
       showToast('Saved to Profile', 'success');
+    }
+  };
+
+  const handleToggleReaction = async (type: 'likes' | 'loves') => {
+    if (!id || !user) return;
+    const isLike = type === 'likes';
+    const nextState = isLike ? !reactions.isLiked : !reactions.isLoved;
+    const delta = nextState ? 1 : -1;
+
+    setReactions((prev) => ({
+      ...prev,
+      likes: isLike ? Math.max(0, prev.likes + delta) : prev.likes,
+      loves: !isLike ? Math.max(0, prev.loves + delta) : prev.loves,
+      isLiked: isLike ? nextState : prev.isLiked,
+      isLoved: !isLike ? nextState : prev.isLoved,
+    }));
+
+    const success = await toggleReaction(id, type, nextState);
+    if (!success) {
+      // revert
+      setReactions((prev) => ({
+        ...prev,
+        likes: isLike ? Math.max(0, prev.likes - delta) : prev.likes,
+        loves: !isLike ? Math.max(0, prev.loves - delta) : prev.loves,
+        isLiked: isLike ? !nextState : prev.isLiked,
+        isLoved: !isLike ? !nextState : prev.isLoved,
+      }));
+      showToast('Could not update reaction', 'error');
     }
   };
 
@@ -406,6 +484,52 @@ export function PinDetail() {
             </div>
 
             <div className="flex-1 overflow-y-auto">
+                <div className="flex items-center gap-3 mb-4">
+                  <button
+                    onClick={() => handleToggleReaction('likes')}
+                    className={clsx(
+                      "flex items-center gap-2 px-4 py-2 rounded-full border transition-colors",
+                      reactions.isLiked
+                        ? "bg-yellow-100 border-yellow-400 text-yellow-800"
+                        : "bg-white border-gray-200 text-gray-800 hover:bg-yellow-50 hover:border-yellow-300"
+                    )}
+                    disabled={loadingReactions}
+                  >
+                    <ThumbsUp
+                      size={16}
+                      className={clsx(
+                        reactions.isLiked ? "text-yellow-600 fill-yellow-400" : "text-gray-700"
+                      )}
+                    />
+                    <span className="text-sm font-semibold">{reactions.likes}</span>
+                  </button>
+
+                  <button
+                    onClick={() => handleToggleReaction('loves')}
+                    className={clsx(
+                      "flex items-center gap-2 px-4 py-2 rounded-full border transition-colors",
+                      reactions.isLoved
+                        ? "bg-red-100 border-red-400 text-red-800"
+                        : "bg-white border-gray-200 text-gray-800 hover:bg-red-50 hover:border-red-300"
+                    )}
+                    disabled={loadingReactions}
+                  >
+                    <Heart
+                      size={16}
+                      className={clsx(
+                        reactions.isLoved ? "text-red-600 fill-red-400" : "text-gray-700"
+                      )}
+                    />
+                    <span className="text-sm font-semibold">{reactions.loves}</span>
+                  </button>
+
+                  {loadingReactions && (
+                    <div className="flex items-center gap-2 text-xs text-gray-500">
+                      <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-gray-400"></div>
+                      Updating...
+                    </div>
+                  )}
+                </div>
                 <h1 className="text-3xl font-bold mb-4">{photo.alt_description || 'Untitled Pin'}</h1>
                 
                 <p className="text-gray-700 mb-6 text-sm">
@@ -436,6 +560,9 @@ export function PinDetail() {
                     >
                       View Original Image Source
                     </a>
+                    <div className="text-xs text-gray-500 mt-2 font-mono">
+                      ID: {photo.id}
+                    </div>
                 </div>
 
                 <div className="mt-8">
@@ -468,14 +595,14 @@ export function PinDetail() {
                                     <span>{new Date(comment.timestamp).toLocaleDateString()}</span>
                                     <span className="cursor-pointer hover:underline">Reply</span>
                                     <Heart size={12} className="cursor-pointer hover:fill-red-500 hover:text-red-500 transition-colors" />
-                                    {comment.userId === 'user-me' && (
-                                       <button 
-                                          onClick={() => deleteComment(comment.id)}
-                                          className="opacity-0 group-hover:opacity-100 transition-opacity hover:text-red-500 ml-auto"
-                                          title="Delete comment"
-                                       >
-                                          <Trash2 size={12} />
-                                       </button>
+                                    {comment.userId === user?.id && (
+                                      <button 
+                                        onClick={() => deleteComment(comment.id)}
+                                        className="opacity-0 group-hover:opacity-100 transition-opacity hover:text-red-500 ml-auto"
+                                        title="Delete comment"
+                                      >
+                                        <Trash2 size={12} />
+                                      </button>
                                     )}
                                 </div>
                             </div>
@@ -491,18 +618,29 @@ export function PinDetail() {
         </div>
         
         {/* Related Pins Section - Optimized with loading state */}
-        {relatedPhotos && relatedPhotos.length > 0 && (
-           <div className="w-full max-w-[1440px] px-4 py-8">
-               <h2 className="text-center text-xl font-semibold mb-6 text-black">More like this</h2>
-               {isRelatedLoading ? (
-                 <div className="flex items-center justify-center py-8">
-                   <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-red-600"></div>
-                 </div>
-               ) : (
-                 <MasonryGrid photos={relatedPhotos} onPinClick={handleRelatedClick} />
-               )}
-           </div>
-        )}
+        <div className="w-full max-w-[1440px] px-4 py-8">
+          <h2 className="text-center text-xl font-semibold mb-6 text-black">More like this</h2>
+          {relatedStatus === 'pending' ? (
+            <div className="flex items-center justify-center py-8">
+              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-red-600"></div>
+            </div>
+          ) : relatedPhotos.length === 0 ? (
+            <p className="text-center text-gray-400">No related images found.</p>
+          ) : (
+            <>
+              <MasonryGrid photos={relatedPhotos} onPinClick={handleRelatedClick} />
+              <div ref={relatedObserverRef} className="h-10 w-full" />
+              {isFetchingNextPage && (
+                <div className="flex items-center justify-center py-4">
+                  <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-red-600"></div>
+                </div>
+              )}
+              {!hasNextPage && (
+                <p className="text-center text-gray-400 text-sm mt-2">End of recommendations</p>
+              )}
+            </>
+          )}
+        </div>
       </div>
 
       {isAlbumModalOpen && (

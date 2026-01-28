@@ -70,7 +70,19 @@ export const addComment = async (pinId: string, content: string): Promise<Commen
         user_id: user.id,
         content,
       })
-      .select()
+      .select(`
+        id,
+        pin_id,
+        user_id,
+        content,
+        created_at,
+        updated_at,
+        user_profiles (
+          first_name,
+          last_name,
+          avatar_url
+        )
+      `)
       .single();
 
     if (error) {
@@ -78,13 +90,19 @@ export const addComment = async (pinId: string, content: string): Promise<Commen
       return null;
     }
 
+    const record = data as any;
+
     return {
-      id: data.id,
-      pin_id: data.pin_id,
-      user_id: data.user_id,
-      content: data.content,
-      created_at: data.created_at,
-      updated_at: data.updated_at,
+      id: record.id,
+      pin_id: record.pin_id,
+      user_id: record.user_id,
+      content: record.content,
+      created_at: record.created_at,
+      updated_at: record.updated_at,
+      user_name: record.user_profiles
+        ? `${record.user_profiles.first_name || ''} ${record.user_profiles.last_name || ''}`.trim()
+        : user.email || 'You',
+      user_avatar: record.user_profiles?.avatar_url || user.user_metadata?.avatar_url || 'https://api.dicebear.com/7.x/avataaars/svg?seed=' + user.id,
     };
   } catch (error) {
     console.error('Error in addComment:', error);
