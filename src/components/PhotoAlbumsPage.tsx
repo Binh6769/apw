@@ -2,8 +2,9 @@ import { useState, useEffect, useMemo } from 'react';
 import { usePhotoAlbums } from '../hooks/usePhotoAlbums';
 import { useToast } from '../hooks/useToast';
 import { useNavigate, useLocation } from 'react-router-dom';
-import { Plus, Search, Trash2, Lock, Globe, Calendar, ImageIcon, X, Check } from 'lucide-react';
+import { Plus, Search, Trash2, Lock, Globe, Calendar, ImageIcon, X, Check, Shield } from 'lucide-react';
 import { Header } from './Header';
+import { isSavedAlbumName, isHistoryAlbumName } from '../services/systemAlbums';
 
 export default function PhotoAlbumsPage() {
   const { albums, loading, creating, loadAlbums, createNewAlbum, deleteCurrentAlbum, searchUserAlbums } = usePhotoAlbums();
@@ -67,7 +68,7 @@ export default function PhotoAlbumsPage() {
 
   // Filter albums
   const filteredAlbums = useMemo(() => {
-    return albums;
+    return albums.filter((album) => !isHistoryAlbumName(album.name));
   }, [albums]);
 
   return (
@@ -179,7 +180,7 @@ export default function PhotoAlbumsPage() {
                 </p>
               </div>
             ) : (
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
                 {filteredAlbums.map((album) => (
                   <div
                     key={album.id}
@@ -200,22 +201,26 @@ export default function PhotoAlbumsPage() {
                         </div>
                       )}
                       {/* Overlay on hover */}
-                      <div className="absolute inset-0 bg-black/30 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-2">
-                        <button
-                          onClick={(e) => handleDeleteAlbum(album.id, e)}
-                          className="p-3 bg-white rounded-full hover:bg-red-50 transition-colors"
-                          title="Delete album"
-                        >
-                          <Trash2 className="w-5 h-5 text-red-600" />
-                        </button>
-                      </div>
+                      {!isSavedAlbumName(album.name) && (
+                        <div className="absolute inset-0 bg-black/30 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-2">
+                          <button
+                            onClick={(e) => handleDeleteAlbum(album.id, e)}
+                            className="p-3 bg-white rounded-full hover:bg-red-50 transition-colors"
+                            title="Delete album"
+                          >
+                            <Trash2 className="w-5 h-5 text-red-600" />
+                          </button>
+                        </div>
+                      )}
                     </div>
 
                     {/* Album Info */}
                     <div className="p-4">
                       <div className="flex items-start justify-between mb-2">
                         <h3 className="text-lg font-semibold text-gray-900 flex-1 truncate">{album.name}</h3>
-                        {album.is_public ? (
+                        {isSavedAlbumName(album.name) ? (
+                          <Shield className="w-4 h-4 text-blue-600 flex-shrink-0" />
+                        ) : album.is_public ? (
                           <Globe className="w-4 h-4 text-green-600 flex-shrink-0" />
                         ) : (
                           <Lock className="w-4 h-4 text-gray-400 flex-shrink-0" />

@@ -12,9 +12,11 @@ import {
   deleteAlbum,
   getAlbumPhotoCount,
   searchAlbums,
+  ensureAlbumForUser,
 } from '../services/photoAlbumService';
 import { useAuth } from './AuthContext';
 import type { Photo } from '../types';
+import { SYSTEM_ALBUMS, isHistoryAlbumName, isSystemAlbumName } from '../services/systemAlbums';
 
 interface PhotoAlbumContextType {
   albums: PhotoAlbum[];
@@ -22,17 +24,18 @@ interface PhotoAlbumContextType {
   currentAlbumPhotos: AlbumPhoto[];
   loading: boolean;
   creating: boolean;
-
+  systemAlbumIds: { saved: string | null; history: string | null };
+  
   loadAlbums: () => Promise<void>;
   loadAlbum: (albumId: string) => Promise<void>;
   createNewAlbum: (name: string, description?: string) => Promise<PhotoAlbum | null>;
   updateAlbumDetails: (albumId: string, updates: Partial<Pick<PhotoAlbum, 'name' | 'description' | 'is_public'>>) => Promise<void>;
   deleteCurrentAlbum: (albumId: string) => Promise<void>;
   addPhotoToCurrentAlbum: (photo: Photo) => Promise<void>;
+  addPhotoToAlbum: (albumId: string, photo: Photo) => Promise<boolean>;
   removePhotoFromCurrentAlbum: (albumPhotoId: string) => Promise<void>;
   searchUserAlbums: (query: string) => Promise<void>;
   getPhotoCount: (albumId: string) => Promise<number>;
-  addPhotoToAlbum: (albumId: string, photo: Photo) => Promise<void>;
 }
 
 export const PhotoAlbumContext = createContext<PhotoAlbumContextType | undefined>(undefined);
@@ -43,22 +46,56 @@ export function PhotoAlbumProvider({ children }: { children: ReactNode }) {
   const [currentAlbumPhotos, setCurrentAlbumPhotos] = useState<AlbumPhoto[]>([]);
   const [loading, setLoading] = useState(false);
   const [creating, setCreating] = useState(false);
+  const [systemAlbumIds, setSystemAlbumIds] = useState<{ saved: string | null; history: string | null }>({
+    saved: null,
+    history: null,
+  });
   const { user } = useAuth();
+
+  const ensureSystemAlbums = useCallback(async () => {
+    if (!user) return { saved: null, history: null };
+
+    const [savedAlbum, historyAlbum] = await Promise.all([
+      ensureAlbumForUser(user.id, 'saved'),
+      ensureAlbumForUser(user.id, 'history'),
+    ]);
+
+    setSystemAlbumIds({
+      saved: savedAlbum?.id ?? null,
+      history: historyAlbum?.id ?? null,
+    });
+
+    return { savedAlbum, historyAlbum };
+  }, [user]);
 
   const loadAlbums = useCallback(async () => {
     if (!user) return;
 
     setLoading(true);
     try {
+      const { savedAlbum, historyAlbum } = await ensureSystemAlbums();
       const userAlbums = await fetchUserAlbums(user.id);
-      setAlbums(userAlbums);
+      const merged = [
+        ...userAlbums,
+        ...(savedAlbum ? [savedAlbum] : []),
+        ...(historyAlbum ? [historyAlbum] : []),
+      ];
+
+      // Deduplicate by id
+      const unique = Array.from(
+        new Map(merged.map((album) => [album.id, album])).values()
+      );
+
+      // Hide system history album from general listing
+      const visibleAlbums = unique.filter((album) => !isHistoryAlbumName(album.name));
+      setAlbums(visibleAlbums);
     } catch (error) {
       console.error('Failed to load albums', error);
       setAlbums([]);
     } finally {
       setLoading(false);
     }
-  }, [user]);
+  }, [user, ensureSystemAlbums]);
 
   const loadAlbum = useCallback(async (albumId: string) => {
     setLoading(true);
@@ -116,6 +153,12 @@ export function PhotoAlbumProvider({ children }: { children: ReactNode }) {
 
   const deleteCurrentAlbum = useCallback(async (albumId: string) => {
     try {
+      const album = albums.find((a) => a.id === albumId);
+      if (album && isSystemAlbumName(album.name)) {
+        console.warn('System albums cannot be deleted');
+        return;
+      }
+
       const success = await deleteAlbum(albumId);
       if (success) {
         setAlbums((prev) => prev.filter((album) => album.id !== albumId));
@@ -141,6 +184,20 @@ export function PhotoAlbumProvider({ children }: { children: ReactNode }) {
       console.error('Failed to add photo to album', error);
     }
   }, [currentAlbum, loadAlbum]);
+
+  const addPhotoToAlbumById = useCallback(async (albumId: string, photo: Photo): Promise<boolean> => {
+    try {
+      const success = await addPhotoToAlbum(albumId, photo);
+      if (success) {
+        // Refresh albums to keep counts in sync when available
+        await loadAlbums();
+      }
+      return success;
+    } catch (error) {
+      console.error('Failed to add photo to album', error);
+      return false;
+    }
+  }, [loadAlbums]);
 
   const removePhotoFromCurrentAlbum = useCallback(async (albumPhotoId: string) => {
     try {
@@ -176,18 +233,6 @@ export function PhotoAlbumProvider({ children }: { children: ReactNode }) {
     [user, loadAlbums]
   );
 
-  const addPhotoToAlbumById = useCallback(async (albumId: string, photo: Photo) => {
-    try {
-      const success = await addPhotoToAlbum(albumId, photo);
-      if (success && currentAlbum?.id === albumId) {
-        await loadAlbum(albumId);
-      }
-    } catch (error) {
-      console.error('Failed to add photo to album', error);
-      throw error;
-    }
-  }, [currentAlbum?.id, loadAlbum]);
-
   const getPhotoCount = useCallback(async (albumId: string): Promise<number> => {
     try {
       return await getAlbumPhotoCount(albumId);
@@ -216,17 +261,18 @@ export function PhotoAlbumProvider({ children }: { children: ReactNode }) {
         currentAlbum,
         currentAlbumPhotos,
         loading,
-        creating,
-        loadAlbums,
-        loadAlbum,
-        createNewAlbum,
-        updateAlbumDetails,
-        deleteCurrentAlbum,
+      creating,
+      systemAlbumIds,
+      loadAlbums,
+      loadAlbum,
+      createNewAlbum,
+      updateAlbumDetails,
+      deleteCurrentAlbum,
         addPhotoToCurrentAlbum,
+        addPhotoToAlbum: addPhotoToAlbumById,
         removePhotoFromCurrentAlbum,
         searchUserAlbums,
         getPhotoCount,
-        addPhotoToAlbum: addPhotoToAlbumById,
       }}
     >
       {children}

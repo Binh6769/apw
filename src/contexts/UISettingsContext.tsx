@@ -1,5 +1,6 @@
 import { createContext, useEffect, useMemo, useState } from 'react';
 import type { ReactNode } from 'react';
+import { supabase } from '../services/supabase';
 
 export type ColorMode = 'light' | 'dark' | 'system';
 export type ThemeStyle = 'classic' | 'sunset' | 'ocean' | 'mint' | 'purple' | 'rose';
@@ -30,6 +31,7 @@ interface UISettingsContextValue {
 }
 
 const STORAGE_KEY = 'ui_settings_v1';
+const PREFERENCES_TABLE = 'ui_preferences';
 
 const DEFAULT_SETTINGS: UISettings = {
   colorMode: 'system',
@@ -59,6 +61,8 @@ export function UISettingsProvider({ children }: { children: ReactNode }) {
   });
 
   const [systemPrefersDark, setSystemPrefersDark] = useState(false);
+  const [userId, setUserId] = useState<string | null>(null);
+  const [remoteLoaded, setRemoteLoaded] = useState(false);
 
   useEffect(() => {
     if (typeof window === 'undefined' || !window.matchMedia) return;
@@ -92,7 +96,67 @@ export function UISettingsProvider({ children }: { children: ReactNode }) {
     const root = document.documentElement;
     root.dataset.colorMode = resolvedColorMode;
     root.dataset.uiTheme = settings.themeStyle;
+    if (resolvedColorMode === 'dark') {
+      root.classList.add('dark');
+    } else {
+      root.classList.remove('dark');
+    }
   }, [resolvedColorMode, settings.themeStyle]);
+
+  // Track auth user to sync preferences to Supabase
+  useEffect(() => {
+    supabase.auth.getUser().then(({ data }) => {
+      setUserId(data.user?.id ?? null);
+    });
+    const { data } = supabase.auth.onAuthStateChange((_event, session) => {
+      setUserId(session?.user?.id ?? null);
+      setRemoteLoaded(false);
+    });
+    return () => data?.subscription.unsubscribe();
+  }, []);
+
+  // Pull remote preferences once per user
+  useEffect(() => {
+    if (!userId || remoteLoaded) return;
+    let cancelled = false;
+    const loadRemote = async () => {
+      const { data, error } = await supabase
+        .from(PREFERENCES_TABLE)
+        .select('settings')
+        .eq('user_id', userId)
+        .maybeSingle();
+      if (error && error.code !== 'PGRST116') {
+        console.error('Failed to fetch remote UI settings', error);
+        return;
+      }
+      if (!cancelled && data?.settings) {
+        setSettings((prev) => ({ ...prev, ...data.settings }));
+      }
+      setRemoteLoaded(true);
+    };
+    loadRemote();
+    return () => {
+      cancelled = true;
+    };
+  }, [userId, remoteLoaded]);
+
+  // Push updates to Supabase after remote load to avoid overwriting
+  useEffect(() => {
+    if (!userId || !remoteLoaded) return;
+    const persist = async () => {
+      const { error } = await supabase
+        .from(PREFERENCES_TABLE)
+        .upsert({
+          user_id: userId,
+          settings,
+          updated_at: new Date().toISOString(),
+        });
+      if (error) {
+        console.error('Failed to persist UI settings to Supabase', error);
+      }
+    };
+    persist();
+  }, [settings, userId, remoteLoaded]);
 
   const updateSettings = (updates: Partial<UISettings>) => {
     setSettings((prev) => ({ ...prev, ...updates }));

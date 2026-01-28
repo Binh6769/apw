@@ -27,6 +27,20 @@ interface UserProfile {
 
 const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
+const craftDescription = (pin: Pin) => {
+  const parts = [
+    pin.title,
+    pin.description,
+    pin.category ? `Category: ${pin.category}` : null,
+    pin.image_color ? `Palette ${pin.image_color}` : null,
+  ].filter(Boolean);
+
+  if (parts.length === 0) return 'Visual inspiration from the community.';
+
+  const uniqueParts = Array.from(new Set(parts.map((p) => p?.trim()))).slice(0, 3);
+  return uniqueParts.join(' | ');
+};
+
 // Convert Pin to Photo format for display
 const convertPinToPhoto = (pin: Pin, userProfile?: UserProfile): Photo => {
   const userName = userProfile
@@ -45,7 +59,7 @@ const convertPinToPhoto = (pin: Pin, userProfile?: UserProfile): Photo => {
     width: pin.image_width,
     height: pin.image_height,
     color: pin.image_color || '#e8e8e8',
-    alt_description: pin.title,
+    alt_description: craftDescription(pin),
     user: {
       name: userName,
       username: userProfile?.user_id || 'user',
@@ -175,32 +189,47 @@ export const fetchUserPins = async (userId: string): Promise<Photo[]> => {
   }
 };
 
-// Fetch user's saved pins
+// Internal helper to allow temporary fallback while the new saved_images table rolls out
+const withSavedTable = async <T extends { data?: any; error?: any }>(
+  handler: (table: 'saved_images' | 'saved_pins') => Promise<T>
+): Promise<T> => {
+  const primary = await handler('saved_images');
+  if ((primary as any)?.error && (primary as any).error.message?.includes('saved_images')) {
+    console.warn('saved_images table unavailable, falling back to saved_pins');
+    return handler('saved_pins');
+  }
+  return primary;
+};
+
+// Fetch user's saved pins (persisted in saved_images table)
 export const fetchSavedPins = async (userId: string): Promise<Photo[]> => {
   try {
-    const { data, error } = await supabase
-      .from('saved_pins')
-      .select(
+    const { data, error } = await withSavedTable(async (table) => {
+      const response = await supabase
+        .from(table)
+        .select(
+          `
+          pin_id,
+          pins (
+            id,
+            user_id,
+            title,
+            description,
+            image_url,
+            image_width,
+            image_height,
+            image_color,
+            source_url,
+            category,
+            created_at,
+            updated_at
+          )
         `
-        pin_id,
-        pins (
-          id,
-          user_id,
-          title,
-          description,
-          image_url,
-          image_width,
-          image_height,
-          image_color,
-          source_url,
-          category,
-          created_at,
-          updated_at
         )
-      `
-      )
-      .eq('user_id', userId)
-      .order('saved_at', { ascending: false });
+        .eq('user_id', userId)
+        .order('saved_at', { ascending: false });
+      return response;
+    });
 
     if (error) {
       console.error('Error fetching saved pins:', error);
@@ -352,26 +381,32 @@ export const savePin = async (pinId: string): Promise<boolean> => {
     if (!user) throw new Error('User not authenticated');
 
     // First check if already saved
-    const { data: existing } = await supabase
-      .from('saved_pins')
-      .select('id')
-      .eq('user_id', user.id)
-      .eq('pin_id', pinId)
-      .single();
+    const { data: existing } = await withSavedTable(async (table) => {
+      const response = await supabase
+        .from(table)
+        .select('id')
+        .eq('user_id', user.id)
+        .eq('pin_id', pinId)
+        .maybeSingle();
+      return response;
+    });
 
     if (existing) {
       console.log('Pin already saved');
       return true;
     }
 
-    const { data, error } = await supabase
-      .from('saved_pins')
-      .insert({
-        user_id: user.id,
-        pin_id: pinId,
-      })
-      .select()
-      .single();
+    const { data, error } = await withSavedTable(async (table) => {
+      const response = await supabase
+        .from(table)
+        .insert({
+          user_id: user.id,
+          pin_id: pinId,
+        })
+        .select()
+        .single();
+      return response;
+    });
 
     if (error) {
       console.error('Error saving pin:', error);
@@ -392,11 +427,14 @@ export const unsavePin = async (pinId: string): Promise<boolean> => {
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) throw new Error('User not authenticated');
 
-    const { error } = await supabase
-      .from('saved_pins')
-      .delete()
-      .eq('pin_id', pinId)
-      .eq('user_id', user.id);
+    const { error } = await withSavedTable(async (table) => {
+      const response = await supabase
+        .from(table)
+        .delete()
+        .eq('pin_id', pinId)
+        .eq('user_id', user.id);
+      return response;
+    });
 
     if (error) {
       console.error('Error unsaving pin:', error);
@@ -417,12 +455,15 @@ export const isPinSaved = async (pinId: string): Promise<boolean> => {
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) return false;
 
-    const { data, error } = await supabase
-      .from('saved_pins')
-      .select('id')
-      .eq('pin_id', pinId)
-      .eq('user_id', user.id)
-      .single();
+    const { data, error } = await withSavedTable(async (table) => {
+      const response = await supabase
+        .from(table)
+        .select('id')
+        .eq('pin_id', pinId)
+        .eq('user_id', user.id)
+        .maybeSingle();
+      return response;
+    });
 
     if (error && error.code !== 'PGRST116') {
       console.error('Error checking if pin is saved:', error);
