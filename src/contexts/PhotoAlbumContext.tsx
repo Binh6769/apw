@@ -16,7 +16,7 @@ import {
 } from '../services/photoAlbumService';
 import { useAuth } from './AuthContext';
 import type { Photo } from '../types';
-import { SYSTEM_ALBUMS, isHistoryAlbumName, isSystemAlbumName } from '../services/systemAlbums';
+import { isHistoryAlbumName, isSystemAlbumName } from '../services/systemAlbums';
 
 interface PhotoAlbumContextType {
   albums: PhotoAlbum[];
