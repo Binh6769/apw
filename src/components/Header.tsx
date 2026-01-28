@@ -2,7 +2,7 @@ import { useState, useEffect, useRef } from 'react';
 import { Search, Bell, ChevronDown, Loader2 } from 'lucide-react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
-import { getUserProfile } from '../services/userProfileService';
+import { getUserProfile, type UserProfile } from '../services/userProfileService';
 
 export function Header() {
   const navigate = useNavigate();
@@ -11,7 +11,7 @@ export function Header() {
   const [searchValue, setSearchValue] = useState(searchParams.get('q') || '');
   const [isSearchFocused, setIsSearchFocused] = useState(false);
   const [isLoggingOut, setIsLoggingOut] = useState(false);
-  const [userProfile, setUserProfile] = useState<any>(null);
+  const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
   
   const [isCreateOpen, setIsCreateOpen] = useState(false);
   const [isMenuOpen, setIsMenuOpen] = useState(false);
@@ -114,7 +114,7 @@ export function Header() {
 
   const otherAccounts = savedAccounts.filter((account) => account.userId !== user?.id);
 
-  const getAccountName = (account: { email: string | null; userMetadata: any; displayName: string | null }) => {
+  const getAccountName = (account: { email: string | null; userMetadata: Record<string, string> | null; displayName: string | null }) => {
     if (account.displayName) return account.displayName;
     const meta = account.userMetadata || {};
     const firstName = meta.first_name || meta.firstName || '';
@@ -123,7 +123,7 @@ export function Header() {
     return fullName || account.email || 'User';
   };
 
-  const getAccountAvatar = (account: { userId: string; userMetadata: any; avatarUrl: string | null }) => {
+  const getAccountAvatar = (account: { userId: string; userMetadata: Record<string, string> | null; avatarUrl: string | null }) => {
     if (account.avatarUrl) return account.avatarUrl;
     const meta = account.userMetadata || {};
     return meta.avatar_url || `https://api.dicebear.com/7.x/avataaars/svg?seed=${account.userId}`;

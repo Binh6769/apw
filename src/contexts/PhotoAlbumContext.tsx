@@ -22,7 +22,7 @@ interface PhotoAlbumContextType {
   currentAlbumPhotos: AlbumPhoto[];
   loading: boolean;
   creating: boolean;
-  
+
   loadAlbums: () => Promise<void>;
   loadAlbum: (albumId: string) => Promise<void>;
   createNewAlbum: (name: string, description?: string) => Promise<PhotoAlbum | null>;
@@ -32,6 +32,7 @@ interface PhotoAlbumContextType {
   removePhotoFromCurrentAlbum: (albumPhotoId: string) => Promise<void>;
   searchUserAlbums: (query: string) => Promise<void>;
   getPhotoCount: (albumId: string) => Promise<number>;
+  addPhotoToAlbum: (albumId: string, photo: Photo) => Promise<void>;
 }
 
 export const PhotoAlbumContext = createContext<PhotoAlbumContextType | undefined>(undefined);
@@ -175,6 +176,18 @@ export function PhotoAlbumProvider({ children }: { children: ReactNode }) {
     [user, loadAlbums]
   );
 
+  const addPhotoToAlbumById = useCallback(async (albumId: string, photo: Photo) => {
+    try {
+      const success = await addPhotoToAlbum(albumId, photo);
+      if (success && currentAlbum?.id === albumId) {
+        await loadAlbum(albumId);
+      }
+    } catch (error) {
+      console.error('Failed to add photo to album', error);
+      throw error;
+    }
+  }, [currentAlbum?.id, loadAlbum]);
+
   const getPhotoCount = useCallback(async (albumId: string): Promise<number> => {
     try {
       return await getAlbumPhotoCount(albumId);
@@ -213,6 +226,7 @@ export function PhotoAlbumProvider({ children }: { children: ReactNode }) {
         removePhotoFromCurrentAlbum,
         searchUserAlbums,
         getPhotoCount,
+        addPhotoToAlbum: addPhotoToAlbumById,
       }}
     >
       {children}

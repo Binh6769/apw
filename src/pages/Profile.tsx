@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { useSavedPins } from '../hooks/useSavedPins';
 import { useCreatedPins } from '../hooks/useCreatedPins';
 import { useAuth } from '../contexts/AuthContext';
-import { getUserProfile } from '../services/userProfileService';
+import { getUserProfile, type UserProfile } from '../services/userProfileService';
 import { MasonryGrid } from '../components/MasonryGrid';
 import { Header } from '../components/Header';
 import { AvatarSelector } from '../components/AvatarSelector';
@@ -19,7 +19,7 @@ export function Profile() {
   const navigate = useNavigate();
   const { showToast } = useToast();
   const [activeTab, setActiveTab] = useState<'saved' | 'created'>('saved');
-  const [userProfile, setUserProfile] = useState<any>(null);
+  const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
   const [profileLoading, setProfileLoading] = useState(true);
   const [showAvatarSelector, setShowAvatarSelector] = useState(false);
 
@@ -46,7 +46,7 @@ export function Profile() {
     ? `${userProfile.first_name || ''} ${userProfile.last_name || ''}`.trim()
     : user?.user_metadata?.first_name || user?.email || 'User';
 
-  const handlePinClick = (photo: any) => {
+  const handlePinClick = (photo: Photo) => {
     const photoWithId = { ...photo, _imageId: photo.id };
     navigate(`/pin/${photo.id}`, { state: { photo: photoWithId } });
   };
@@ -168,9 +168,11 @@ export function Profile() {
       {showAvatarSelector && user && (
         <AvatarSelector
           userId={user.id}
-          currentAvatarUrl={userProfile?.avatar_url}
+          currentAvatarUrl={userProfile?.avatar_url ?? undefined}
           onAvatarChange={(url) => {
-            setUserProfile({ ...userProfile, avatar_url: url });
+            if (userProfile) {
+              setUserProfile({ ...userProfile, avatar_url: url });
+            }
           }}
           onClose={() => setShowAvatarSelector(false)}
         />

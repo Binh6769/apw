@@ -7,6 +7,7 @@ import { Header } from '../components/Header';
 import { Loader2 } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { supabase } from '../services/supabase';
+import type { Photo } from '../types';
 
 export function Home() {
   const [searchParams] = useSearchParams();
@@ -99,7 +100,7 @@ export function Home() {
     return () => observer.unobserve(element);
   }, [handleObserver]);
 
-  const handlePinClick = (photo: any) => {
+  const handlePinClick = (photo: Photo) => {
     const photoWithId = { ...photo, _imageId: photo.id };
     navigate(`/pin/${photo.id}`, { state: { photo: photoWithId } });
   };

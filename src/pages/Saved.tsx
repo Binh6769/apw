@@ -5,6 +5,7 @@ import { MasonryGrid } from '../components/MasonryGrid';
 import { Header } from '../components/Header';
 import { useNavigate } from 'react-router-dom';
 import { BookmarkX, Loader2 } from 'lucide-react';
+import type { Photo } from '../types';
 
 export function Saved() {
   const { savedPins, loading } = useSavedPins();
@@ -17,7 +18,7 @@ export function Saved() {
     }
   }, [user, navigate]);
 
-  const handlePinClick = (photo: any) => {
+  const handlePinClick = (photo: Photo) => {
     const photoWithId = { ...photo, _imageId: photo.id };
     navigate(`/pin/${photo.id}`, { state: { from: 'saved', photo: photoWithId } });
   };

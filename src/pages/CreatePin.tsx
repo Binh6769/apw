@@ -6,7 +6,7 @@ import { useNavigate } from 'react-router-dom';
 import { ArrowUpCircle, X, Loader2 } from 'lucide-react';
 import { uploadImageFromDataUrl } from '../services/storageService';
 import { createPin as createPinService } from '../services/pinsService';
-import { getUserProfile } from '../services/userProfileService';
+import { getUserProfile, type UserProfile } from '../services/userProfileService';
 
 export function CreatePin() {
   const { showToast } = useToast();
@@ -14,14 +14,14 @@ export function CreatePin() {
   const { user } = useAuth();
   const navigate = useNavigate();
   const fileInputRef = useRef<HTMLInputElement>(null);
-  
+
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
   const [link, setLink] = useState('');
   const [selectedFile, setSelectedFile] = useState<string | null>(null);
   const [imageDimensions, setImageDimensions] = useState<{width: number, height: number} | null>(null);
   const [isLoading, setIsLoading] = useState(false);
-  const [userProfile, setUserProfile] = useState<any>(null);
+  const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
 
   useEffect(() => {
     if (!user) return;

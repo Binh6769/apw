@@ -3,13 +3,13 @@ import { useLocation, useNavigate } from 'react-router-dom';
 import { useEffect, useState } from 'react';
 import clsx from 'clsx';
 import { useAuth } from '../contexts/AuthContext';
-import { getUserProfile } from '../services/userProfileService';
+import { getUserProfile, type UserProfile } from '../services/userProfileService';
 
 export function MobileNav() {
   const navigate = useNavigate();
   const location = useLocation();
   const { user } = useAuth();
-  const [userProfile, setUserProfile] = useState<any>(null);
+  const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
 
   // Load user profile to get real avatar
   useEffect(() => {

@@ -74,8 +74,14 @@ function MasonryGridComponent({ photos, onPinClick, onPinDelete }: MasonryGridPr
   const columns = useMasonry(orderedPhotos, columnCount);
 
   // Memoize callback to prevent child re-renders
-  const memoizedOnPinClick = useCallback(onPinClick, [onPinClick]);
-  const memoizedOnPinDelete = useCallback(onPinDelete, [onPinDelete]);
+  const memoizedOnPinClick = useCallback(
+    (photo: Photo) => onPinClick(photo),
+    [onPinClick]
+  );
+  const memoizedOnPinDelete = useCallback(
+    (photo: Photo) => onPinDelete?.(photo),
+    [onPinDelete]
+  );
 
   return (
     <div className={clsx("flex justify-center px-2 md:px-4 w-full max-w-[2000px] mx-auto", densityGap, densityPadding)}>
@@ -89,7 +95,7 @@ function MasonryGridComponent({ photos, onPinClick, onPinDelete }: MasonryGridPr
               key={photo.id} 
               photo={photo} 
               onClick={() => memoizedOnPinClick(photo)}
-              onDelete={memoizedOnPinDelete}
+              onDelete={onPinDelete ? memoizedOnPinDelete : undefined}
               onImageLoad={handleImageLoad}
             />
           ))}

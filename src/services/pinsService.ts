@@ -113,7 +113,7 @@ export const fetchPinsFromSupabase = async (
       (profiles || []).map(p => [p.user_id, p])
     );
 
-    return data.map((pin: any) => 
+    return data.map((pin: Pin) =>
       convertPinToPhoto(
         pin,
         profileMap.get(pin.user_id) || undefined
@@ -163,7 +163,7 @@ export const fetchUserPins = async (userId: string): Promise<Photo[]> => {
       .eq('user_id', userId)
       .single();
 
-    return data.map((pin: any) =>
+    return data.map((pin: Pin) =>
       convertPinToPhoto(
         pin,
         profileData || undefined
@@ -209,9 +209,15 @@ export const fetchSavedPins = async (userId: string): Promise<Photo[]> => {
 
     if (!data) return [];
 
+    // Define saved pin type - pins is array from Supabase join
+    interface SavedPinRow {
+      pin_id: string;
+      pins: Pin[] | null;
+    }
+
     // Get all unique user IDs from pins
-    const userIds = [...new Set((data || []).map((saved: any) => saved.pins?.user_id).filter(Boolean))];
-    
+    const userIds = [...new Set((data || []).map((saved: SavedPinRow) => saved.pins?.[0]?.user_id).filter(Boolean))] as string[];
+
     // Fetch all user profiles in one query
     const { data: profiles } = await supabase
       .from('user_profiles')
@@ -223,8 +229,9 @@ export const fetchSavedPins = async (userId: string): Promise<Photo[]> => {
     );
 
     return data
-      .map((saved: any) => {
-        const pin = saved.pins;
+      .map((saved: SavedPinRow) => {
+        const pin = saved.pins?.[0];
+        if (!pin) return null;
         return convertPinToPhoto(
           pin,
           profileMap.get(pin.user_id) || undefined

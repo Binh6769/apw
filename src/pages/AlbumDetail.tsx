@@ -1,6 +1,7 @@
 import { useState, useEffect, useMemo } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { usePhotoAlbums } from '../hooks/usePhotoAlbums';
+import type { AlbumPhoto } from '../services/photoAlbumService';
 import { useToast } from '../hooks/useToast';
 import { ArrowLeft, SortAsc, Search, ImageIcon } from 'lucide-react';
 import { MasonryGrid } from '../components/MasonryGrid';
@@ -29,7 +30,7 @@ export default function AlbumDetail() {
       setLoading(true);
       await loadAlbum(albumId!);
       // Convert album photos to Photo objects
-      const photoObjects: Photo[] = (currentAlbumPhotos || []).map((p: any) => ({
+      const photoObjects: Photo[] = (currentAlbumPhotos || []).map((p: AlbumPhoto) => ({
         id: p.photo_id,
         urls: {
           regular: p.photo_url,
@@ -58,7 +59,7 @@ export default function AlbumDetail() {
   // Update photos when currentAlbumPhotos changes
   useEffect(() => {
     if (currentAlbumPhotos && currentAlbumPhotos.length > 0) {
-      const photoObjects: Photo[] = currentAlbumPhotos.map((p: any) => ({
+      const photoObjects: Photo[] = currentAlbumPhotos.map((p: AlbumPhoto) => ({
         id: p.photo_id,
         urls: {
           regular: p.photo_url,
@@ -111,7 +112,7 @@ export default function AlbumDetail() {
   };
 
   // Filter by search
-  let filteredPhotos = useMemo(() => {
+  const filteredPhotos = useMemo(() => {
     return photos.filter(p => 
       !searchQuery || 
       p.alt_description?.toLowerCase().includes(searchQuery.toLowerCase())

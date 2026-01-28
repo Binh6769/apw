@@ -13,6 +13,7 @@ import { Header } from '../components/Header'; // Added Header import
 import clsx from 'clsx';
 import { useEffect, useState } from 'react';
 import { deletePin } from '../services/pinsService';
+import type { Photo } from '../types';
 import { usePhotoAlbums } from '../hooks/usePhotoAlbums';
 import { addPhotoToAlbum, removePhotoFromAlbum } from '../services/photoAlbumService';
 
@@ -259,7 +260,7 @@ export function PinDetail() {
      }
   }, [id, isModal]);
 
-  const handleRelatedClick = (photo: any) => {
+  const handleRelatedClick = (photo: Photo) => {
     // When clicking related pins, pass the complete photo object so the detail page displays the same image
     // Add _imageId to ensure unique identification across navigation
     const photoWithId = { ...photo, _imageId: photo.id };

@@ -39,18 +39,36 @@ export const fetchComments = async (pinId: string): Promise<Comment[]> => {
       return [];
     }
 
-    return (data || []).map((comment: any) => ({
-      id: comment.id,
-      pin_id: comment.pin_id,
-      user_id: comment.user_id,
-      content: comment.content,
-      created_at: comment.created_at,
-      updated_at: comment.updated_at,
-      user_name: comment.user_profiles
-        ? `${comment.user_profiles.first_name || ''} ${comment.user_profiles.last_name || ''}`.trim()
-        : 'Anonymous',
-      user_avatar: comment.user_profiles?.avatar_url || 'https://api.dicebear.com/7.x/avataaars/svg?seed=default',
-    }));
+    // Define the raw comment type from Supabase join
+    interface RawComment {
+      id: string;
+      pin_id: string;
+      user_id: string;
+      content: string;
+      created_at: string;
+      updated_at: string;
+      user_profiles: {
+        first_name: string | null;
+        last_name: string | null;
+        avatar_url: string | null;
+      }[] | null;
+    }
+
+    return (data || []).map((comment: RawComment) => {
+      const profile = Array.isArray(comment.user_profiles) ? comment.user_profiles[0] : comment.user_profiles;
+      return {
+        id: comment.id,
+        pin_id: comment.pin_id,
+        user_id: comment.user_id,
+        content: comment.content,
+        created_at: comment.created_at,
+        updated_at: comment.updated_at,
+        user_name: profile
+          ? `${profile.first_name || ''} ${profile.last_name || ''}`.trim() || 'Anonymous'
+          : 'Anonymous',
+        user_avatar: profile?.avatar_url || `https://api.dicebear.com/7.x/avataaars/svg?seed=${comment.user_id}`,
+      };
+    });
   } catch (error) {
     console.error('Error in fetchComments:', error);
     return [];

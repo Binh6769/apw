@@ -1,6 +1,6 @@
 import { useState, memo, useRef, useEffect } from 'react';
 import type { Photo } from '../types';
-import { Share2, MoreHorizontal, Trash2, Plus, Copy } from 'lucide-react';
+import { MoreHorizontal, Trash2, Plus, Copy } from 'lucide-react';
 import { useSavedPins } from '../hooks/useSavedPins';
 import { useToast } from '../hooks/useToast';
 import { useUiSettings } from '../hooks/useUiSettings';
