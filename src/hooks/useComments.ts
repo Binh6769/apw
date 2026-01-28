@@ -21,6 +21,11 @@ export function useComments(pinId: string) {
   useEffect(() => {
     const loadComments = async () => {
       setLoading(true);
+      if (!pinId) {
+        setComments([]);
+        setLoading(false);
+        return;
+      }
       try {
         const supabaseComments = await fetchCommentsService(pinId);
         const transformedComments: Comment[] = supabaseComments.map(c => ({
@@ -56,7 +61,7 @@ export function useComments(pinId: string) {
       pinId,
       userId: user.id,
       userName: user.user_metadata?.first_name || user.email || 'Anonymous',
-      userImage: 'https://api.dicebear.com/7.x/avataaars/svg?seed=' + user.id,
+      userImage: user.user_metadata?.avatar_url || 'https://api.dicebear.com/7.x/avataaars/svg?seed=' + user.id,
       text,
       timestamp: Date.now(),
     };
@@ -75,6 +80,8 @@ export function useComments(pinId: string) {
                   ...c,
                   id: result.id,
                   timestamp: new Date(result.created_at).getTime(),
+                  userName: result.user_name || c.userName,
+                  userImage: result.user_avatar || c.userImage,
                 }
               : c
           )

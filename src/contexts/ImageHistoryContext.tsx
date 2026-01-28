@@ -13,6 +13,8 @@ import {
   getRecentlyViewed,
 } from '../services/imageHistoryService';
 import { useAuth } from './AuthContext';
+import { addPhotoToAlbum, ensureAlbumForUser, addPhotosToAlbum, removePhotoFromAlbumByPhotoId } from '../services/photoAlbumService';
+import { supabase } from '../services/supabase';
 
 interface ImageHistoryContextType {
   history: ImageHistoryRecord[];
@@ -20,6 +22,7 @@ interface ImageHistoryContextType {
   historyCount: number;
   loading: boolean;
   isRecording: boolean;
+  historyAlbumId: string | null;
   recordView: (photo: Photo, source?: string) => Promise<void>;
   loadHistory: (limit?: number, offset?: number) => Promise<void>;
   loadRecentlyViewed: (limit?: number) => Promise<void>;
@@ -37,7 +40,16 @@ export function ImageHistoryProvider({ children }: { children: ReactNode }) {
   const [historyCount, setHistoryCount] = useState(0);
   const [loading, setLoading] = useState(false);
   const [isRecording, setIsRecording] = useState(false);
+  const [historyAlbumId, setHistoryAlbumId] = useState<string | null>(null);
   const { user } = useAuth();
+
+  const resolveHistoryAlbumId = useCallback(async (): Promise<string | null> => {
+    if (!user) return null;
+    if (historyAlbumId) return historyAlbumId;
+    const album = await ensureAlbumForUser(user.id, 'history');
+    if (album?.id) setHistoryAlbumId(album.id);
+    return album?.id ?? null;
+  }, [historyAlbumId, user]);
 
   // Record a viewed image
   const recordView = useCallback(
@@ -51,6 +63,10 @@ export function ImageHistoryProvider({ children }: { children: ReactNode }) {
           // Update the count
           const newCount = await getImageHistoryCount(user.id);
           setHistoryCount(newCount);
+          const albumId = await resolveHistoryAlbumId();
+          if (albumId) {
+            await addPhotoToAlbum(albumId, photo);
+          }
         }
       } catch (error) {
         console.error('Failed to record image view', error);
@@ -58,7 +74,7 @@ export function ImageHistoryProvider({ children }: { children: ReactNode }) {
         setIsRecording(false);
       }
     },
-    [user]
+    [user, resolveHistoryAlbumId]
   );
 
   // Load history with pagination
@@ -70,6 +86,29 @@ export function ImageHistoryProvider({ children }: { children: ReactNode }) {
       try {
         const records = await fetchImageHistory(user.id, limit, offset);
         setHistory(records);
+        const albumId = await resolveHistoryAlbumId();
+        if (albumId && records.length > 0) {
+          const photos = records.map((record) => ({
+            id: record.image_id,
+            urls: {
+              raw: record.image_url,
+              full: record.image_url,
+              regular: record.image_url,
+              small: record.image_url,
+              thumb: record.image_url,
+            },
+            width: record.image_width || 0,
+            height: record.image_height || 0,
+            color: record.image_color || '#e5e5e5',
+            alt_description: record.image_description || record.image_title,
+            user: {
+              name: 'History',
+              username: 'history',
+              profile_image: { small: '', medium: '', large: '' },
+            },
+          }));
+          await addPhotosToAlbum(albumId, photos);
+        }
       } catch (error) {
         console.error('Failed to load history', error);
         setHistory([]);
@@ -77,7 +116,7 @@ export function ImageHistoryProvider({ children }: { children: ReactNode }) {
         setLoading(false);
       }
     },
-    [user]
+    [user, resolveHistoryAlbumId]
   );
 
   // Load recently viewed
@@ -93,7 +132,7 @@ export function ImageHistoryProvider({ children }: { children: ReactNode }) {
         setRecentlyViewed([]);
       }
     },
-    [user]
+    [user, resolveHistoryAlbumId]
   );
 
   // Delete a history item
@@ -102,16 +141,24 @@ export function ImageHistoryProvider({ children }: { children: ReactNode }) {
       try {
         const success = await deleteImageFromHistory(historyId);
         if (success) {
-          setHistory((prev) => prev.filter((item) => item.id !== historyId));
+          let removed: ImageHistoryRecord | undefined;
+          setHistory((prev) => {
+            removed = prev.find((item) => item.id === historyId);
+            return prev.filter((item) => item.id !== historyId);
+          });
           setRecentlyViewed((prev) => prev.filter((item) => item.id !== historyId));
           const newCount = await getImageHistoryCount(user!.id);
           setHistoryCount(newCount);
+          const albumId = await resolveHistoryAlbumId();
+          if (albumId && removed?.image_id) {
+            await removePhotoFromAlbumByPhotoId(albumId, removed.image_id);
+          }
         }
       } catch (error) {
         console.error('Failed to delete history item', error);
       }
     },
-    [user]
+    [user, resolveHistoryAlbumId]
   );
 
   // Clear all history
@@ -122,11 +169,19 @@ export function ImageHistoryProvider({ children }: { children: ReactNode }) {
         setHistory([]);
         setRecentlyViewed([]);
         setHistoryCount(0);
+        const albumId = await resolveHistoryAlbumId();
+        if (albumId) {
+          // Clear album photos tied to history
+          await supabase
+            .from('album_photos')
+            .delete()
+            .eq('album_id', albumId);
+        }
       }
     } catch (error) {
       console.error('Failed to clear history', error);
     }
-  }, []);
+  }, [resolveHistoryAlbumId]);
 
   // Search history
   const searchHistory = useCallback(
@@ -179,16 +234,17 @@ export function ImageHistoryProvider({ children }: { children: ReactNode }) {
   return (
     <ImageHistoryContext.Provider
       value={{
-        history,
-        recentlyViewed,
-        historyCount,
-        loading,
-        isRecording,
-        recordView,
-        loadHistory,
-        loadRecentlyViewed,
-        deleteHistoryItem,
-        clearAll,
+      history,
+      recentlyViewed,
+      historyCount,
+      loading,
+      isRecording,
+      historyAlbumId,
+      recordView,
+      loadHistory,
+      loadRecentlyViewed,
+      deleteHistoryItem,
+      clearAll,
         searchHistory,
         refreshCount,
       }}

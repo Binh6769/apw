@@ -1,8 +1,9 @@
 /* eslint-disable react-refresh/only-export-components */
-import { createContext, useState, useEffect } from 'react';
+import { createContext, useState, useEffect, useCallback } from 'react';
 import type { ReactNode } from 'react';
 import type { Photo } from '../types';
 import { ensurePinExists, fetchSavedPins, fetchUserPins, savePin as savePinService, unsavePin as unsavePinService } from '../services/pinsService';
+import { addPhotoToAlbum, addPhotosToAlbum, ensureAlbumForUser, removePhotoFromAlbumByPhotoId } from '../services/photoAlbumService';
 import { useAuth } from './AuthContext';
 
 interface SavedPinsContextType {
@@ -19,8 +20,9 @@ export function SavedPinsProvider({ children }: { children: ReactNode }) {
   const [savedPins, setSavedPins] = useState<Photo[]>([]);
   const [loading, setLoading] = useState(true);
   const [savedIds, setSavedIds] = useState<Set<string>>(new Set());
+  const [savedAlbumId, setSavedAlbumId] = useState<string | null>(null);
   const { user } = useAuth();
-  const storageKey = user ? `saved_pins_${user.id}` : null;
+  const storageKey = user ? `saved_images_${user.id}` : null;
 
   const getPhotoUrlCandidates = (photo: Photo) => {
     return [photo.urls.full, photo.urls.regular, photo.urls.raw, photo.urls.small, photo.urls.thumb].filter(Boolean);
@@ -44,6 +46,7 @@ export function SavedPinsProvider({ children }: { children: ReactNode }) {
     if (!user) {
       setSavedPins([]);
       setSavedIds(new Set());
+      setSavedAlbumId(null);
       setLoading(false);
       return;
     }
@@ -65,6 +68,9 @@ export function SavedPinsProvider({ children }: { children: ReactNode }) {
     const loadPins = async () => {
       setLoading(true);
       try {
+        const album = await ensureAlbumForUser(user.id, 'saved');
+        setSavedAlbumId(album?.id ?? null);
+
         // Fetch both saved and created pins
         const savedPinsData = await fetchSavedPins(user.id);
         const createdPinsData = await fetchUserPins(user.id);
@@ -75,6 +81,11 @@ export function SavedPinsProvider({ children }: { children: ReactNode }) {
         
         setSavedPins(filteredSavedPins);
         setSavedIds(new Set(filteredSavedPins.map(p => p.id)));
+
+        // Keep system Saved album in sync with saved pins
+        if (album?.id && filteredSavedPins.length > 0) {
+          await addPhotosToAlbum(album.id, filteredSavedPins);
+        }
       } catch (error) {
         console.error('Failed to load saved pins', error);
         setSavedPins([]);
@@ -96,6 +107,14 @@ export function SavedPinsProvider({ children }: { children: ReactNode }) {
       console.warn('Failed to cache saved pins', error);
     }
   }, [savedPins, storageKey]);
+
+  const resolveSavedAlbumId = useCallback(async (): Promise<string | null> => {
+    if (!user) return null;
+    if (savedAlbumId) return savedAlbumId;
+    const album = await ensureAlbumForUser(user.id, 'saved');
+    if (album?.id) setSavedAlbumId(album.id);
+    return album?.id ?? null;
+  }, [savedAlbumId, user]);
 
   const savePin = async (photo: Photo) => {
     if (findSavedPin(photo)) {
@@ -123,6 +142,10 @@ export function SavedPinsProvider({ children }: { children: ReactNode }) {
       const success = await savePinService(pinId);
       if (success) {
         console.log('Successfully saved to Supabase:', pinId);
+        const albumId = await resolveSavedAlbumId();
+        if (albumId) {
+          await addPhotoToAlbum(albumId, savedPhoto);
+        }
       } else {
         console.error('Failed to save to Supabase, reverting...');
         // Revert on error
@@ -168,6 +191,10 @@ export function SavedPinsProvider({ children }: { children: ReactNode }) {
       const success = await unsavePinService(pinId);
       if (success) {
         console.log('Successfully removed from Supabase:', pinId);
+        const albumId = await resolveSavedAlbumId();
+        if (albumId) {
+          await removePhotoFromAlbumByPhotoId(albumId, pinId);
+        }
       } else {
         console.error('Failed to remove from Supabase');
       }

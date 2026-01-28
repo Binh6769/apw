@@ -2,7 +2,7 @@ import { useState, useEffect, useRef } from 'react';
 import { Search, Bell, ChevronDown, Loader2 } from 'lucide-react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
-import { getUserProfile, type UserProfile } from '../services/userProfileService';
+import { getUserProfile } from '../services/userProfileService';
 
 export function Header() {
   const navigate = useNavigate();
@@ -11,7 +11,8 @@ export function Header() {
   const [searchValue, setSearchValue] = useState(searchParams.get('q') || '');
   const [isSearchFocused, setIsSearchFocused] = useState(false);
   const [isLoggingOut, setIsLoggingOut] = useState(false);
-  const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
+  const [userProfile, setUserProfile] = useState<any>(null);
+  const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
   
   const [isCreateOpen, setIsCreateOpen] = useState(false);
   const [isMenuOpen, setIsMenuOpen] = useState(false);
@@ -23,6 +24,8 @@ export function Header() {
   // Load user profile from Supabase
   useEffect(() => {
     if (!user) return;
+    const cached = localStorage.getItem(`avatar_cache_${user.id}`);
+    if (cached) setAvatarUrl(cached);
     const loadProfile = async () => {
       try {
         const profile = await getUserProfile(user.id);
@@ -30,6 +33,10 @@ export function Header() {
         if (profile) {
           const name = `${profile.first_name || ''} ${profile.last_name || ''}`.trim() || user.email || 'User';
           updateAccountProfile(user.id, profile.avatar_url ?? null, name);
+          if (profile.avatar_url) {
+            setAvatarUrl(profile.avatar_url);
+            localStorage.setItem(`avatar_cache_${user.id}`, profile.avatar_url);
+          }
         }
       } catch (error) {
         console.error('Error loading profile:', error);
@@ -77,10 +84,23 @@ export function Header() {
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
+  const isLikelyImageId = (value: string) => {
+    const trimmed = value.trim();
+    if (!trimmed) return false;
+    return (
+      /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(trimmed) ||
+      /^(mal|art|top|unsplash|pexels|pixabay|mock|pin|local)-/i.test(trimmed)
+    );
+  };
+
   const handleSearch = (e: React.KeyboardEvent<HTMLInputElement>) => {
     if (e.key === 'Enter') {
       if (searchValue.trim()) {
-        navigate(`/?q=${encodeURIComponent(searchValue.trim())}`);
+        if (isLikelyImageId(searchValue)) {
+          navigate(`/pin/${searchValue.trim()}`);
+        } else {
+          navigate(`/?q=${encodeURIComponent(searchValue.trim())}`);
+        }
         setIsSearchFocused(false);
       } else {
         navigate('/');
@@ -114,7 +134,7 @@ export function Header() {
 
   const otherAccounts = savedAccounts.filter((account) => account.userId !== user?.id);
 
-  const getAccountName = (account: { email: string | null; userMetadata: Record<string, string> | null; displayName: string | null }) => {
+  const getAccountName = (account: { email: string | null; userMetadata: any; displayName: string | null }) => {
     if (account.displayName) return account.displayName;
     const meta = account.userMetadata || {};
     const firstName = meta.first_name || meta.firstName || '';
@@ -123,11 +143,17 @@ export function Header() {
     return fullName || account.email || 'User';
   };
 
-  const getAccountAvatar = (account: { userId: string; userMetadata: Record<string, string> | null; avatarUrl: string | null }) => {
+  const getAccountAvatar = (account: { userId: string; userMetadata: any; avatarUrl: string | null }) => {
     if (account.avatarUrl) return account.avatarUrl;
     const meta = account.userMetadata || {};
     return meta.avatar_url || `https://api.dicebear.com/7.x/avataaars/svg?seed=${account.userId}`;
   };
+
+  const resolvedAvatar =
+    avatarUrl ||
+    userProfile?.avatar_url ||
+    user?.user_metadata?.avatar_url ||
+    (user ? `https://api.dicebear.com/7.x/avataaars/svg?seed=${user.id}` : '');
 
   const handleSwitchAccount = async (accountId: string) => {
     const { error } = await switchAccount(accountId);
@@ -144,9 +170,12 @@ export function Header() {
     <div className="fixed top-0 left-0 right-0 h-20 bg-white z-50 flex items-center px-4 gap-4 shadow-sm">
       {/* Logo */}
       <a href="/" onClick={goHome} className="p-3 hover:bg-gray-100 rounded-full cursor-pointer flex-shrink-0">
-        <svg height="24" width="24" viewBox="0 0 24 24" aria-label="Pinterest" role="img">
-          <path d="M0 12c0 5.123 3.211 9.497 7.73 11.218-.11-.937-.227-2.482.025-3.566.217-.932 1.401-5.938 1.401-5.938s-.357-.715-.357-1.774c0-1.66.962-2.9 2.161-2.9 1.02 0 1.512.765 1.512 1.682 0 1.025-.653 2.557-.99 3.978-.281 1.189.597 2.159 1.769 2.159 2.123 0 3.756-2.239 3.756-5.471 0-2.861-2.056-4.86-4.991-4.86-3.398 0-5.393 2.549-5.393 5.184 0 1.027.395 2.127.894 2.741a.361.361 0 0 1 .083.345l-.333 1.36c-.053.22-.174.267-.402.161-1.499-.698-2.436-2.889-2.436-4.646 0-3.785 2.75-7.262 7.929-7.262 4.163 0 7.398 2.967 7.398 6.931 0 4.136-2.607 7.464-6.227 7.464-1.216 0-2.359-.631-2.75-1.378l-.748 2.853c-.271 1.043-1.002 2.35-1.492 3.146C9.57 23.812 10.763 24 12 24c6.627 0 12-5.373 12-12S18.627 0 12 0 0 5.373 0 12" fill="#E60023"></path>
-        </svg>
+        <img
+          src="/brand-mark.svg"
+          alt="Anime pins logo"
+          className="h-8 w-8 select-none"
+          draggable={false}
+        />
       </a>
 
       {/* Nav Links - Desktop */}
@@ -222,7 +251,7 @@ export function Header() {
               title="Your Profile"
             >
                <img 
-                 src={userProfile?.avatar_url || user.user_metadata?.avatar_url || 'https://api.dicebear.com/7.x/avataaars/svg?seed=' + user.id} 
+                 src={resolvedAvatar} 
                  alt={user.email} 
                  className="w-6 h-6 rounded-full object-cover" 
                />
@@ -245,7 +274,7 @@ export function Header() {
                           className="flex items-center gap-2 p-2 hover:bg-gray-100 rounded-lg cursor-pointer bg-gray-100"
                        >
                           <img 
-                            src={userProfile?.avatar_url || user.user_metadata?.avatar_url || 'https://api.dicebear.com/7.x/avataaars/svg?seed=' + user.id} 
+                            src={resolvedAvatar} 
                             alt={user.email} 
                             className="w-10 h-10 rounded-full" 
                           />

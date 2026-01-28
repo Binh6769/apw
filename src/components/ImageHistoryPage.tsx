@@ -4,12 +4,9 @@ import { useNavigate, useLocation } from 'react-router-dom';
 import { Clock, Trash2, Search, AlertCircle, Trash } from 'lucide-react';
 import { useToast } from '../hooks/useToast';
 import type { Photo } from '../types';
-import { useMediaColumns } from '../hooks/useMediaColumns';
-import { useUiSettings } from '../hooks/useUiSettings';
-import { useMasonry } from '../hooks/useMasonry';
-import { PinCard } from './PinCard';
 import clsx from 'clsx';
 import { Header } from './Header';
+import { PinCard } from './PinCard';
 
 export default function ImageHistoryPage() {
   const { history, historyCount, loading, searchHistory, deleteHistoryItem, clearAll, loadHistory } = useImageHistory();
@@ -20,12 +17,6 @@ export default function ImageHistoryPage() {
   const { showToast } = useToast();
   const navigate = useNavigate();
   const location = useLocation();
-  const { settings } = useUiSettings();
-  const columnCount = useMediaColumns(settings.gridColumns);
-  const [loadedIds, setLoadedIds] = useState<Set<string>>(new Set());
-
-  const densityGap = settings.feedDensity === 'compact' ? 'gap-2' : settings.feedDensity === 'spacious' ? 'gap-6' : 'gap-4';
-  const densityPadding = settings.feedDensity === 'compact' ? 'py-3' : settings.feedDensity === 'spacious' ? 'py-6' : 'py-4';
 
   useEffect(() => {
     loadHistory(1000, 0); // Load all for filtering
@@ -126,44 +117,35 @@ export default function ImageHistoryPage() {
   }, [history, timeFilter, selectedDate]);
 
   // Convert history records to Photo objects for display
-  const photoObjects: Photo[] = useMemo(() => {
-    return filteredHistory.map(record => ({
-      id: record.id,
-      urls: { 
-        regular: record.image_url, 
-        raw: record.image_url,
-        full: record.image_url,
-        small: record.image_url,
-        thumb: record.image_url
-      },
-      alt_description: record.image_title || '',
-      width: record.image_width || 400,
-      height: record.image_height || 600,
-      color: '#e5e7eb',
-      user: { 
-        name: record.source,
-        username: record.source,
-        profile_image: { small: '', medium: '', large: '' }
-      },
-      likes: 0,
-      description: `Viewed ${formatDateShort(record.viewed_at)}`
-    } as unknown as Photo));
+  const photoObjects: Array<Photo & { historyId: string }> = useMemo(() => {
+    const deduped = new Map<string, Photo & { historyId: string }>();
+    filteredHistory.forEach(record => {
+      const imageId = record.image_id || record.id;
+      if (deduped.has(imageId)) return;
+      deduped.set(imageId, {
+        id: imageId,
+        urls: {
+          regular: record.image_url,
+          raw: record.image_url,
+          full: record.image_url,
+          small: record.image_url,
+          thumb: record.image_url,
+        },
+        alt_description: record.image_title || '',
+        width: record.image_width || 400,
+        height: record.image_height || 600,
+        color: record.image_color || '#e5e7eb',
+        user: {
+          name: record.source,
+          username: record.source,
+          profile_image: { small: '', medium: '', large: '' },
+        },
+        description: `Viewed ${formatDateShort(record.viewed_at)}`,
+        historyId: record.id,
+      } as Photo & { historyId: string });
+    });
+    return Array.from(deduped.values());
   }, [filteredHistory]);
-
-  useEffect(() => {
-    if (loadedIds.size === 0) return;
-    const next = new Set<string>();
-    for (const photo of photoObjects) {
-      if (loadedIds.has(photo.id)) {
-        next.add(photo.id);
-      }
-    }
-    if (next.size !== loadedIds.size) {
-      setLoadedIds(next);
-    }
-  }, [photoObjects, loadedIds]);
-
-  const columns = useMasonry(photoObjects.filter(p => loadedIds.has(p.id)), columnCount);
 
   const formatDateShort = (dateString: string) => {
     const date = new Date(dateString);
@@ -292,21 +274,18 @@ export default function ImageHistoryPage() {
               </p>
             </div>
           ) : (
-            <div className={clsx("flex justify-center px-2 md:px-4 w-full max-w-[2000px] mx-auto", densityGap, densityPadding)}>
-              {columns.map((col, colIndex) => (
-                <div key={colIndex} className={clsx("flex flex-col flex-1 min-w-0", densityGap)}>
-                  {col.map((photo) => (
-                    <PinCard
-                      key={photo.id}
-                      photo={photo}
-                      onClick={() => {
-                        navigate(`/pin/${photo.id}`, { 
-                          state: { background: location, photo } 
-                        });
-                      }}
-                      onDelete={() => handleDelete(photo.id)}
-                    />
-                  ))}
+            <div className="columns-2 md:columns-3 xl:columns-4 gap-4">
+              {photoObjects.map((photo) => (
+                <div key={photo.id} className="break-inside-avoid mb-4">
+                  <PinCard
+                    photo={photo}
+                    onClick={() =>
+                      navigate(`/pin/${photo.id}`, {
+                        state: { background: location, photo },
+                      })
+                    }
+                    onDelete={(p) => handleDelete((p as any).historyId || p.id)}
+                  />
                 </div>
               ))}
             </div>

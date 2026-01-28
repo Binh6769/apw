@@ -1,5 +1,6 @@
 import { supabase } from './supabase';
 import type { Photo } from '../types';
+import { ensureSystemAlbum, isSystemAlbumName } from './systemAlbums';
 
 export interface PhotoAlbum {
   id: string;
@@ -230,6 +231,18 @@ export const deleteAlbum = async (albumId: string): Promise<boolean> => {
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) throw new Error('User not authenticated');
 
+    // Prevent system albums from being deleted
+    const { data: albumRecord } = await supabase
+      .from('photo_albums')
+      .select('name')
+      .eq('id', albumId)
+      .maybeSingle();
+
+    if (albumRecord && isSystemAlbumName(albumRecord.name)) {
+      console.warn('Attempt to delete system album was blocked');
+      return false;
+    }
+
     const { error } = await supabase
       .from('photo_albums')
       .delete()
@@ -296,3 +309,81 @@ export const searchAlbums = async (
     return [];
   }
 };
+
+/**
+ * Bulk add photos to an album (idempotent via upsert)
+ */
+export const addPhotosToAlbum = async (
+  albumId: string,
+  photos: Photo[]
+): Promise<boolean> => {
+  if (photos.length === 0) return true;
+
+  try {
+    const rows = photos.map((photo) => ({
+      album_id: albumId,
+      photo_id: photo.id,
+      photo_url: photo.urls.full || photo.urls.regular,
+      photo_title: photo.alt_description,
+      photo_width: photo.width,
+      photo_height: photo.height,
+      photo_color: photo.color,
+    }));
+
+    const { error } = await supabase
+      .from('album_photos')
+      .upsert(rows, { onConflict: 'album_id,photo_id' });
+
+    if (error) {
+      console.error('Error bulk adding photos to album:', error);
+      return false;
+    }
+
+    await supabase
+      .from('photo_albums')
+      .update({
+        updated_at: new Date().toISOString(),
+        cover_image_url: rows[0]?.photo_url,
+      })
+      .eq('id', albumId);
+
+    return true;
+  } catch (error) {
+    console.error('Error in addPhotosToAlbum:', error);
+    return false;
+  }
+};
+
+/**
+ * Remove a photo from an album using photo_id (helper for sync)
+ */
+export const removePhotoFromAlbumByPhotoId = async (
+  albumId: string,
+  photoId: string
+): Promise<boolean> => {
+  try {
+    const { error } = await supabase
+      .from('album_photos')
+      .delete()
+      .eq('album_id', albumId)
+      .eq('photo_id', photoId);
+
+    if (error) {
+      console.error('Error removing photo by id from album:', error);
+      return false;
+    }
+
+    return true;
+  } catch (error) {
+    console.error('Error in removePhotoFromAlbumByPhotoId:', error);
+    return false;
+  }
+};
+
+/**
+ * Ensure a system album exists and return it.
+ */
+export const ensureAlbumForUser = async (
+  userId: string,
+  type: 'saved' | 'history'
+): Promise<PhotoAlbum | null> => ensureSystemAlbum(userId, type);

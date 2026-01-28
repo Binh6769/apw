@@ -1,4 +1,4 @@
-import { useState, memo, useRef, useEffect } from 'react';
+import { useState, memo, useRef, useEffect, useMemo } from 'react';
 import type { Photo } from '../types';
 import { MoreHorizontal, Trash2, Plus, Copy } from 'lucide-react';
 import { useSavedPins } from '../hooks/useSavedPins';
@@ -7,6 +7,7 @@ import { useUiSettings } from '../hooks/useUiSettings';
 import { usePhotoAlbums } from '../hooks/usePhotoAlbums';
 import clsx from 'clsx';
 import { useNavigate } from 'react-router-dom';
+import { isHistoryAlbumName } from '../services/systemAlbums';
 
 interface PinCardProps {
   photo: Photo;
@@ -27,6 +28,10 @@ export const PinCard = memo(function PinCard({ photo, onClick, onImageLoad, onDe
   const { settings } = useUiSettings();
   const { albums, addPhotoToAlbum } = usePhotoAlbums();
   const navigate = useNavigate();
+  const selectableAlbums = useMemo(
+    () => albums.filter((album) => !isHistoryAlbumName(album.name)),
+    [albums]
+  );
 
   const saved = isSaved(photo);
   const radiusClass =
@@ -247,10 +252,10 @@ export const PinCard = memo(function PinCard({ photo, onClick, onImageLoad, onDe
 
                    {isAlbumMenuOpen && (
                      <div className="absolute bottom-full right-0 mb-1 bg-white rounded-lg shadow-lg border border-gray-200 overflow-hidden z-50 max-h-60 overflow-y-auto min-w-[180px]">
-                       {albums.length === 0 && (
+                       {selectableAlbums.length === 0 && (
                          <div className="px-4 py-2 text-sm text-gray-500">No albums yet</div>
                        )}
-                       {albums.map(album => (
+                       {selectableAlbums.map(album => (
                          <button
                            key={album.id}
                            onClick={(e) => handleAddToAlbum(album.id, e)}
