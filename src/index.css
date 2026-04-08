@@ -1,131 +1,118 @@
+/* Google Fonts - Russo One (headings) + Chakra Petch (body) */
+@import url('https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@300;400;500;600;700&family=Russo+One&display=swap');
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
 @layer base {
-  html, body, #root {
+
+  html,
+  body,
+  #root {
     height: 100%;
   }
 
   body {
-    @apply antialiased text-gray-900 bg-white;
+    @apply antialiased bg-anime-bg text-anime-text;
+    font-family: 'Chakra Petch', sans-serif;
+  }
+
+  h1,
+  h2,
+  h3,
+  h4,
+  h5,
+  h6 {
+    font-family: 'Russo One', sans-serif;
   }
 }
 
-/* Custom Scrollbar hide but allow scroll if needed, though Pinterest uses default often or custom slim one. 
-   For now, keep standard browser scrollbar or customize lightly. */
-
 :root {
-  --ui-bg: #ffffff;
-  --ui-text: #0f172a;
-  --ui-surface: #ffffff;
-  --ui-surface-muted: #f4f5f7;
-  --ui-surface-strong: #eef0f3;
-  --ui-border: #e5e7eb;
-  --ui-muted: #6b7280;
-  --ui-accent: #e60023;
-  --ui-accent-strong: #ad081b;
+  /* Default Dark Anime Base Variables */
+  color-scheme: dark;
+  --ui-bg: #0A0A0A;
+  --ui-text: #F5F5F5;
+  --ui-surface: #171717;
+  --ui-surface-muted: #1e293b;
+  --ui-surface-strong: #262626;
+  --ui-border: #334155;
+  --ui-muted: #A3A3A3;
+  --ui-primary: #DC2626;
+  /* Red */
+  --ui-secondary: #EAB308;
+  /* Yellow */
+  --ui-accent: #DC2626;
+  --ui-accent-strong: #B91C1C;
+}
+
+:root[data-color-mode="light"] {
+  color-scheme: light;
+  --ui-bg: #F9FAFB;
+  --ui-text: #111827;
+  --ui-surface: #FFFFFF;
+  --ui-surface-muted: #F3F4F6;
+  --ui-surface-strong: #E5E7EB;
+  --ui-border: #D1D5DB;
+  --ui-muted: #6B7280;
+  --ui-primary: #DC2626;
+  --ui-secondary: #EAB308;
+  --ui-accent: #DC2626;
+  --ui-accent-strong: #B91C1C;
 }
 
 :root[data-color-mode="dark"] {
   color-scheme: dark;
-  --ui-bg: #0b0f14;
-  --ui-text: #e2e8f0;
-  --ui-surface: #121821;
-  --ui-surface-muted: #151d27;
-  --ui-surface-strong: #1c2633;
-  --ui-border: #2a3645;
-  --ui-muted: #94a3b8;
+  --ui-bg: #0A0A0A;
+  --ui-text: #F5F5F5;
+  --ui-surface: #171717;
+  --ui-surface-muted: #1e293b;
+  --ui-surface-strong: #262626;
+  --ui-border: #334155;
+  --ui-muted: #A3A3A3;
+  --ui-primary: #DC2626;
+  --ui-secondary: #EAB308;
+  --ui-accent: #DC2626;
+  --ui-accent-strong: #B91C1C;
 }
 
 :root[data-ui-theme="sunset"] {
+  --ui-primary: #f97316;
   --ui-accent: #f97316;
   --ui-accent-strong: #ea580c;
 }
 
 :root[data-ui-theme="ocean"] {
+  --ui-primary: #0ea5e9;
   --ui-accent: #0ea5e9;
   --ui-accent-strong: #0284c7;
 }
 
 :root[data-ui-theme="mint"] {
+  --ui-primary: #10b981;
   --ui-accent: #10b981;
   --ui-accent-strong: #059669;
 }
 
-body {
-  background-color: var(--ui-bg);
-  color: var(--ui-text);
+/* Accessibility - Reduced Motion */
+@media (prefers-reduced-motion: reduce) {
+
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
 }
 
-:root[data-color-mode="dark"] .bg-white {
-  background-color: var(--ui-surface) !important;
+/* Focus Visible Styles */
+*:focus-visible {
+  outline: 2px solid var(--ui-accent);
+  outline-offset: 2px;
 }
 
-:root[data-color-mode="dark"] .bg-gray-50 {
-  background-color: var(--ui-surface-muted) !important;
-}
-
-:root[data-color-mode="dark"] .bg-gray-100 {
-  background-color: var(--ui-surface-strong) !important;
-}
-
-:root[data-color-mode="dark"] .bg-gray-200 {
-  background-color: #243041 !important;
-}
-
-:root[data-color-mode="dark"] .bg-blue-50 {
-  background-color: #0b1a2e !important;
-}
-
-:root[data-color-mode="dark"] .bg-red-100 {
-  background-color: #3a1315 !important;
-}
-
-:root[data-color-mode="dark"] .bg-white\/80 {
-  background-color: rgba(15, 23, 42, 0.8) !important;
-}
-
-:root[data-color-mode="dark"] .text-gray-900,
-:root[data-color-mode="dark"] .text-black {
-  color: var(--ui-text) !important;
-}
-
-:root[data-color-mode="dark"] .text-gray-800 {
-  color: #d6e0ee !important;
-}
-
-:root[data-color-mode="dark"] .text-gray-700 {
-  color: #cbd5e1 !important;
-}
-
-:root[data-color-mode="dark"] .text-gray-600,
-:root[data-color-mode="dark"] .text-gray-500 {
-  color: var(--ui-muted) !important;
-}
-
-:root[data-color-mode="dark"] .text-gray-400 {
-  color: #7c889f !important;
-}
-
-:root[data-color-mode="dark"] .border-gray-100,
-:root[data-color-mode="dark"] .border-gray-200,
-:root[data-color-mode="dark"] .border-gray-300 {
-  border-color: var(--ui-border) !important;
-}
-
-:root[data-color-mode="dark"] .hover\:bg-gray-100:hover {
-  background-color: #1c2633 !important;
-}
-
-:root[data-color-mode="dark"] .hover\:bg-gray-200:hover {
-  background-color: #243041 !important;
-}
-
-:root .bg-\[\#E60023\] {
-  background-color: var(--ui-accent) !important;
-}
-
-:root .hover\:bg-\[\#ad081b\]:hover {
-  background-color: var(--ui-accent-strong) !important;
+/* Smooth Transitions Utility */
+.transition-smooth {
+  transition: all 200ms ease-in-out;
 }

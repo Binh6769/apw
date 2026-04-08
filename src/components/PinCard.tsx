@@ -97,7 +97,7 @@ export const PinCard = memo(function PinCard({ photo, onClick, onImageLoad, onDe
       showToast('Saved to Profile', 'success');
     }
   };
-  
+
   const handleMoreClick = (e: React.MouseEvent) => {
     e.stopPropagation();
     setIsMenuOpen(!isMenuOpen);
@@ -143,13 +143,13 @@ export const PinCard = memo(function PinCard({ photo, onClick, onImageLoad, onDe
   const aspectRatio = (isNaN(ratio) || !isFinite(ratio) ? 1.5 : ratio) * 100;
 
   return (
-    <div 
+    <div
       ref={cardRef}
       className="relative mb-4 group cursor-zoom-in"
       onClick={onClick}
     >
-      <div 
-        className={clsx("relative overflow-hidden bg-gray-200", radiusClass)}
+      <div
+        className={clsx("relative overflow-hidden bg-anime-surface-muted", radiusClass, !isLoaded && "animate-pulse")}
         style={{ paddingBottom: `${aspectRatio}%`, backgroundColor: photo.color }}
       >
         {isVisible && (
@@ -167,7 +167,7 @@ export const PinCard = memo(function PinCard({ photo, onClick, onImageLoad, onDe
             loading="lazy"
           />
         )}
-        
+
         {/* Overlay */}
         <div
           className={clsx(
@@ -175,108 +175,133 @@ export const PinCard = memo(function PinCard({ photo, onClick, onImageLoad, onDe
             overlayVisibilityClass
           )}
         />
-      </div>
-
-      {/* Hover Actions */}
-      <div
-        className={clsx(
-          "absolute inset-0 p-3 flex flex-col justify-between transition-opacity duration-200",
-          actionVisibilityClass
-        )}
-      >
-        <div className="flex justify-end">
-          <button 
-            className={clsx(
+        {/* Hover Actions */}
+        <div
+          className={clsx(
+            "absolute inset-0 p-3 flex flex-col justify-between transition-opacity duration-200 pointer-events-none",
+            actionVisibilityClass
+          )}
+        >
+          <div className="flex justify-end pointer-events-auto">
+            <button
+              className={clsx(
               "font-bold px-4 py-3 rounded-full transition-colors",
-              saved 
-                ? "bg-black text-white hover:bg-gray-800" 
-                : "bg-[#E60023] text-white hover:bg-[#ad081b]"
+              saved
+                ? "bg-anime-border text-white hover:bg-anime-border"
+                : "bg-anime-cta text-white hover:bg-[#e11d48] shadow-[0_0_10px_rgba(244,63,94,0.4)]"
             )}
             onClick={handleSave}
           >
             {saved ? 'Saved' : 'Save'}
           </button>
         </div>
-        
-        <div className="flex justify-between items-center">
-           <div className="flex items-center gap-2">
-             {onDelete && (
-               <button 
-                 className="bg-white/80 p-2 rounded-full hover:bg-white transition-colors text-black"
-                 onClick={handleDelete}
-                 title="Delete"
-               >
-                 <Trash2 size={16} />
-               </button>
-             )}
-             <button 
-               className="bg-white/80 p-2 rounded-full hover:bg-white transition-colors text-black"
-               onClick={handleShare}
-               title="Copy link"
-             >
-               <Copy size={16} />
-             </button>
-           </div>
-           
-           {/* More Menu */}
-           <div className="relative" ref={menuRef}>
-             <button 
-               className="bg-white/80 p-2 rounded-full hover:bg-white transition-colors text-black"
-               onClick={handleMoreClick}
-               title="More options"
-             >
-               <MoreHorizontal size={16} />
-             </button>
 
-             {/* Dropdown Menu */}
-             {isMenuOpen && (
-               <div className="absolute bottom-full right-0 mb-2 bg-white rounded-lg shadow-xl border border-gray-200 overflow-hidden z-50 min-w-max">
-                 <button
-                   onClick={handleViewDetails}
-                   className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 transition-colors"
-                 >
-                   View Details
-                 </button>
+        <div className="flex justify-end items-end pointer-events-auto">
+          {/* Actions */}
+          <div className="flex items-center gap-2 shrink-0">
+            <div className="flex items-center gap-2">
+              {onDelete && (
+                <button
+                  className="bg-anime-surface-muted/90 backdrop-blur p-2 rounded-full hover:bg-anime-primary hover:text-white transition-colors text-gray-200"
+                  onClick={handleDelete}
+                  title="Delete"
+                >
+                  <Trash2 size={16} />
+                </button>
+              )}
+              <button
+                className="bg-anime-surface-muted/90 backdrop-blur p-2 rounded-full hover:bg-anime-border transition-colors text-gray-200"
+                onClick={handleShare}
+                title="Copy link"
+              >
+                <Copy size={16} />
+              </button>
+            </div>
 
-                 <div className="border-t border-gray-200"></div>
-                 <div className="relative">
-                   <button
-                     onClick={() => setIsAlbumMenuOpen(!isAlbumMenuOpen)}
-                     className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 transition-colors flex items-center justify-between"
-                   >
-                     <span className="flex items-center gap-2">
-                       <Plus size={14} />
-                       Add to Album
-                     </span>
-                   </button>
+            {/* More Menu */}
+            <div className="relative" ref={menuRef}>
+              <button
+                className="bg-anime-surface-muted/90 backdrop-blur p-2 rounded-full hover:bg-anime-border transition-colors text-gray-200"
+                onClick={handleMoreClick}
+                title="More options"
+              >
+                <MoreHorizontal size={16} />
+              </button>
 
-                   {isAlbumMenuOpen && (
-                     <div className="absolute bottom-full right-0 mb-1 bg-white rounded-lg shadow-lg border border-gray-200 overflow-hidden z-50 max-h-60 overflow-y-auto min-w-[180px]">
-                       {selectableAlbums.length === 0 && (
-                         <div className="px-4 py-2 text-sm text-gray-500">No albums yet</div>
-                       )}
-                       {selectableAlbums.map(album => (
-                         <button
-                           key={album.id}
-                           onClick={(e) => handleAddToAlbum(album.id, e)}
-                           className="w-full text-left px-4 py-2 text-sm text-gray-600 hover:bg-blue-50 hover:text-blue-600 transition-colors whitespace-nowrap"
-                         >
-                           {album.name}
-                         </button>
-                       ))}
-                       <div className="border-t border-gray-200"></div>
-                       <button
-                         onClick={handleCreateAlbum}
-                         className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 transition-colors"
-                       >
-                         Create album
-                       </button>
-                     </div>
-                   )}
-                 </div>
-               </div>
-             )}
-           </div>
+            {/* Dropdown Menu */}
+            {isMenuOpen && (
+              <div className="absolute bottom-full right-0 mb-2 bg-anime-surface-muted rounded-lg shadow-xl border border-anime-border overflow-hidden z-50 min-w-max animate-in fade-in zoom-in-95 duration-100">
+                <button
+                  onClick={handleViewDetails}
+                  className="w-full text-left px-4 py-2 text-sm text-gray-200 hover:bg-anime-border transition-colors"
+                >
+                  View Details
+                </button>
+
+                <div className="border-t border-anime-border"></div>
+                <div className="relative">
+                  <button
+                    onClick={() => setIsAlbumMenuOpen(!isAlbumMenuOpen)}
+                    className="w-full text-left px-4 py-2 text-sm text-gray-200 hover:bg-anime-border transition-colors flex items-center justify-between"
+                  >
+                    <span className="flex items-center gap-2">
+                      <Plus size={14} />
+                      Add to Album
+                    </span>
+                  </button>
+
+                  {isAlbumMenuOpen && (
+                    <div className="absolute bottom-full right-0 mb-1 bg-anime-surface-muted rounded-lg shadow-lg border border-anime-border overflow-hidden z-50 max-h-60 overflow-y-auto min-w-[180px] animate-in fade-in zoom-in-95 duration-100">
+                      {selectableAlbums.length === 0 && (
+                        <div className="px-4 py-2 text-sm text-gray-400">No albums yet</div>
+                      )}
+                      {selectableAlbums.map(album => (
+                        <button
+                          key={album.id}
+                          onClick={(e) => handleAddToAlbum(album.id, e)}
+                          className="w-full text-left px-4 py-2 text-sm text-gray-300 hover:bg-anime-primary/20 hover:text-anime-secondary transition-colors whitespace-nowrap"
+                        >
+                          {album.name}
+                        </button>
+                      ))}
+                      <div className="border-t border-anime-border"></div>
+                      <button
+                        onClick={handleCreateAlbum}
+                        className="w-full text-left px-4 py-2 text-sm text-gray-200 hover:bg-anime-border transition-colors"
+                      >
+                        Create album
+                      </button>
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+        </div>
+      </div>
+      </div>
+
+      {/* Info Section (Outside Image) */}
+      <div className="mt-2 flex flex-col gap-1 px-1">
+        {photo.alt_description && (
+          <h3 className="text-sm font-semibold text-anime-text truncate" title={photo.alt_description}>
+            {photo.alt_description}
+          </h3>
+        )}
+        <div className="flex items-center justify-between mt-0.5">
+          {photo.user?.name && (
+            <p className="text-xs text-anime-muted truncate max-w-[60%]">{photo.user.name}</p>
+          )}
+          {photo.tags && photo.tags.length > 0 && (
+            <div className="flex gap-1.5 flex-wrap justify-end flex-1 ml-2">
+              {photo.tags.slice(0, 3).map(tag => (
+                <span key={tag} className="text-[10px] bg-anime-surface-strong text-anime-text px-2 py-0.5 rounded-md border border-anime-border truncate" title={tag}>
+                  #{tag}
+                </span>
+              ))}
+            </div>
+          )}
         </div>
       </div>
     </div>

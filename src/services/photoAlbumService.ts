@@ -385,5 +385,5 @@ export const removePhotoFromAlbumByPhotoId = async (
  */
 export const ensureAlbumForUser = async (
   userId: string,
-  type: 'saved' | 'history'
+  type: 'saved' | 'history' | 'loved'
 ): Promise<PhotoAlbum | null> => ensureSystemAlbum(userId, type);

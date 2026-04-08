@@ -83,7 +83,7 @@ export default function AlbumDetail() {
 
   const handleRemovePhoto = async (photoId: string) => {
     if (!confirm('Remove this image from album?')) return;
-    
+
     try {
       // Find the album photo record ID to remove
       const albumPhoto = currentAlbumPhotos.find(p => p.photo_id === photoId);
@@ -113,8 +113,8 @@ export default function AlbumDetail() {
 
   // Filter by search
   const filteredPhotos = useMemo(() => {
-    return photos.filter(p => 
-      !searchQuery || 
+    return photos.filter(p =>
+      !searchQuery ||
       p.alt_description?.toLowerCase().includes(searchQuery.toLowerCase())
     );
   }, [photos, searchQuery]);
@@ -122,14 +122,14 @@ export default function AlbumDetail() {
   // Sort photos
   const sortedPhotos = useMemo(() => {
     const sorted = [...filteredPhotos];
-    
+
     switch (sortBy) {
       case 'az':
-        return sorted.sort((a, b) => 
+        return sorted.sort((a, b) =>
           (a.alt_description || '').localeCompare(b.alt_description || '')
         );
       case 'za':
-        return sorted.sort((a, b) => 
+        return sorted.sort((a, b) =>
           (b.alt_description || '').localeCompare(a.alt_description || '')
         );
       case 'newest':
@@ -145,20 +145,20 @@ export default function AlbumDetail() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 flex items-center justify-center">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+      <div className="min-h-screen bg-anime-bg flex items-center justify-center text-anime-text">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-anime-primary"></div>
       </div>
     );
   }
 
   if (!currentAlbum) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 flex items-center justify-center">
+      <div className="min-h-screen bg-anime-bg flex items-center justify-center text-anime-text">
         <div className="text-center">
-          <p className="text-gray-600 text-lg mb-4">Album not found</p>
+          <p className="text-gray-400 text-lg mb-4">Album not found</p>
           <button
             onClick={() => navigate('/albums')}
-            className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+            className="px-6 py-2 bg-anime-primary text-white rounded-lg hover:bg-anime-secondary"
           >
             Back to Albums
           </button>
@@ -168,18 +168,18 @@ export default function AlbumDetail() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 py-8">
+    <div className="min-h-screen bg-anime-bg py-8 text-anime-text pt-24">
       <div className="max-w-7xl mx-auto px-4">
         {/* Header */}
         <div className="mb-8">
           <button
             onClick={() => navigate('/albums')}
-            className="flex items-center gap-2 text-blue-600 hover:text-blue-700 mb-4 font-semibold transition-colors"
+            className="flex items-center gap-2 text-anime-primary hover:text-anime-secondary mb-4 font-semibold transition-colors"
           >
             <ArrowLeft className="w-5 h-5" />
             Back to Albums
           </button>
-          
+
           <div className="flex items-start gap-6">
             {/* Album Cover */}
             {currentAlbum.cover_image_url && (
@@ -191,12 +191,12 @@ export default function AlbumDetail() {
                 />
               </div>
             )}
-            
+
             {/* Album Info */}
             <div className="flex-1">
-              <h1 className="text-4xl font-bold text-gray-900 mb-2">{currentAlbum.name}</h1>
+              <h1 className="text-4xl font-bold text-anime-text mb-2">{currentAlbum.name}</h1>
               {currentAlbum.description && (
-                <p className="text-gray-600 mb-3">{currentAlbum.description}</p>
+                <p className="text-gray-300 mb-3">{currentAlbum.description}</p>
               )}
               <p className="text-sm text-gray-500">
                 {sortedPhotos.length} image{sortedPhotos.length !== 1 ? 's' : ''} in album
@@ -215,17 +215,17 @@ export default function AlbumDetail() {
               placeholder="Search images in this album..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full pl-12 pr-4 py-2.5 rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="w-full pl-12 pr-4 py-2.5 rounded-lg border border-anime-border bg-anime-surface text-anime-text focus:outline-none focus:ring-1 focus:ring-anime-primary"
             />
           </div>
 
           {/* Sort */}
           <div className="flex items-center gap-2">
-            <SortAsc className="w-5 h-5 text-gray-600" />
+            <SortAsc className="w-5 h-5 text-gray-400" />
             <select
               value={sortBy}
               onChange={(e) => setSortBy(e.target.value as SortBy)}
-              className="px-4 py-2.5 rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white cursor-pointer"
+              className="px-4 py-2.5 rounded-lg border border-anime-border bg-anime-surface text-anime-text focus:outline-none focus:ring-1 focus:ring-anime-primary cursor-pointer"
             >
               <option value="custom">Custom Order</option>
               <option value="az">A → Z</option>
@@ -238,9 +238,9 @@ export default function AlbumDetail() {
 
         {/* Images Grid */}
         {sortedPhotos.length === 0 ? (
-          <div className="bg-white rounded-lg shadow p-12 text-center">
+          <div className="bg-anime-surface rounded-lg shadow-sm border border-anime-border p-12 text-center text-anime-text">
             <ImageIcon className="w-12 h-12 text-gray-400 mx-auto mb-4" />
-            <p className="text-gray-600 text-lg">
+            <p className="text-gray-400 text-lg">
               {searchQuery ? 'No images found matching your search.' : 'No images in this album yet.'}
             </p>
           </div>

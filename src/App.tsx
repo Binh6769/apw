@@ -22,6 +22,7 @@ import { ImageHistoryProvider } from './contexts/ImageHistoryContext';
 import { PhotoAlbumProvider } from './contexts/PhotoAlbumContext';
 import ImageHistoryPage from './components/ImageHistoryPage';
 import PhotoAlbumsPage from './components/PhotoAlbumsPage';
+import { ErrorBoundary } from './components/ErrorBoundary';
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -47,19 +48,19 @@ function AppRoutes() {
   const location = useLocation();
   const { isAuthenticated, loading } = useAuth();
   const state = location.state as { background?: Location };
-  
+
   // Show loading screen while checking auth
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-white">
+      <div className="min-h-screen flex items-center justify-center bg-anime-bg">
         <div className="flex flex-col items-center gap-4">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-black"></div>
-          <p className="text-gray-600 font-semibold">Loading...</p>
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-anime-primary"></div>
+          <p className="text-anime-text font-semibold">Loading...</p>
         </div>
       </div>
     );
   }
-  
+
   // Hide mobile nav on login/signup page or deep detail pages if desired
   const showMobileNav = isAuthenticated && location.pathname !== '/login' && location.pathname !== '/signup' && !location.pathname.includes('/pin/');
 
@@ -87,7 +88,7 @@ function AppRoutes() {
           <Route path="/pin/:id" element={<RequireAuth><PinDetail /></RequireAuth>} />
         </Routes>
       )}
-      
+
       {showMobileNav && <MobileNav />}
     </>
   );
@@ -105,7 +106,9 @@ function App() {
                   <ImageHistoryProvider>
                     <PhotoAlbumProvider>
                       <BrowserRouter>
-                        <AppRoutes />
+                        <ErrorBoundary>
+                          <AppRoutes />
+                        </ErrorBoundary>
                       </BrowserRouter>
                     </PhotoAlbumProvider>
                   </ImageHistoryProvider>

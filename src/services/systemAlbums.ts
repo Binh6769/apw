@@ -1,7 +1,7 @@
 import { supabase } from './supabase';
 import type { PhotoAlbum } from './photoAlbumService';
 
-export type SystemAlbumKey = 'saved' | 'history';
+export type SystemAlbumKey = 'saved' | 'history' | 'loved';
 
 export const SYSTEM_ALBUMS: Record<SystemAlbumKey, { name: string; description: string; hidden: boolean }> = {
   saved: {
@@ -14,13 +14,19 @@ export const SYSTEM_ALBUMS: Record<SystemAlbumKey, { name: string; description: 
     description: 'System album that tracks everything you view.',
     hidden: true,
   },
+  loved: {
+    name: 'Loved',
+    description: 'System album for pins you love.',
+    hidden: false,
+  },
 };
 
 export const isSystemAlbumName = (name: string | null | undefined) =>
-  name === SYSTEM_ALBUMS.saved.name || name === SYSTEM_ALBUMS.history.name;
+  name === SYSTEM_ALBUMS.saved.name || name === SYSTEM_ALBUMS.history.name || name === SYSTEM_ALBUMS.loved.name;
 
 export const isSavedAlbumName = (name: string | null | undefined) => name === SYSTEM_ALBUMS.saved.name;
 export const isHistoryAlbumName = (name: string | null | undefined) => name === SYSTEM_ALBUMS.history.name;
+export const isLovedAlbumName = (name: string | null | undefined) => name === SYSTEM_ALBUMS.loved.name;
 
 export const ensureSystemAlbum = async (
   userId: string,
@@ -59,10 +65,11 @@ export const ensureSystemAlbum = async (
 };
 
 export const ensureSystemAlbums = async (userId: string): Promise<Record<SystemAlbumKey, PhotoAlbum | null>> => {
-  const [saved, history] = await Promise.all([
+  const [saved, history, loved] = await Promise.all([
     ensureSystemAlbum(userId, 'saved'),
     ensureSystemAlbum(userId, 'history'),
+    ensureSystemAlbum(userId, 'loved'),
   ]);
 
-  return { saved, history };
+  return { saved, history, loved };
 };

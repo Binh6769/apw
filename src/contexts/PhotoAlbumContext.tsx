@@ -24,7 +24,7 @@ interface PhotoAlbumContextType {
   currentAlbumPhotos: AlbumPhoto[];
   loading: boolean;
   creating: boolean;
-  systemAlbumIds: { saved: string | null; history: string | null };
+  systemAlbumIds: { saved: string | null; history: string | null; loved: string | null };
   
   loadAlbums: () => Promise<void>;
   loadAlbum: (albumId: string) => Promise<void>;
@@ -46,26 +46,29 @@ export function PhotoAlbumProvider({ children }: { children: ReactNode }) {
   const [currentAlbumPhotos, setCurrentAlbumPhotos] = useState<AlbumPhoto[]>([]);
   const [loading, setLoading] = useState(false);
   const [creating, setCreating] = useState(false);
-  const [systemAlbumIds, setSystemAlbumIds] = useState<{ saved: string | null; history: string | null }>({
+  const [systemAlbumIds, setSystemAlbumIds] = useState<{ saved: string | null; history: string | null; loved: string | null }>({
     saved: null,
     history: null,
+    loved: null,
   });
   const { user } = useAuth();
 
   const ensureSystemAlbums = useCallback(async () => {
-    if (!user) return { saved: null, history: null };
+    if (!user) return { saved: null, history: null, loved: null };
 
-    const [savedAlbum, historyAlbum] = await Promise.all([
+    const [savedAlbum, historyAlbum, lovedAlbum] = await Promise.all([
       ensureAlbumForUser(user.id, 'saved'),
       ensureAlbumForUser(user.id, 'history'),
+      ensureAlbumForUser(user.id, 'loved'),
     ]);
 
     setSystemAlbumIds({
       saved: savedAlbum?.id ?? null,
       history: historyAlbum?.id ?? null,
+      loved: lovedAlbum?.id ?? null,
     });
 
-    return { savedAlbum, historyAlbum };
+    return { savedAlbum, historyAlbum, lovedAlbum };
   }, [user]);
 
   const loadAlbums = useCallback(async () => {
@@ -73,12 +76,13 @@ export function PhotoAlbumProvider({ children }: { children: ReactNode }) {
 
     setLoading(true);
     try {
-      const { savedAlbum, historyAlbum } = await ensureSystemAlbums();
+      const { savedAlbum, historyAlbum, lovedAlbum } = await ensureSystemAlbums();
       const userAlbums = await fetchUserAlbums(user.id);
       const merged = [
         ...userAlbums,
         ...(savedAlbum ? [savedAlbum] : []),
         ...(historyAlbum ? [historyAlbum] : []),
+        ...(lovedAlbum ? [lovedAlbum] : []),
       ];
 
       // Deduplicate by id

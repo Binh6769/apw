@@ -152,6 +152,7 @@ const searchAnime = async (query: string, page: number): Promise<Photo[]> => {
       height: 318, 
       color: getColorFromString(item.title), 
       alt_description: item.title,
+      tags: ['Anime', 'Jikan', item.studios?.[0]?.name].filter(Boolean) as string[],
       urls: {
         raw: item.images.jpg.large_image_url,
         full: item.images.jpg.large_image_url,
@@ -196,6 +197,7 @@ const fetchSuggestedAnime = async (page: number): Promise<Photo[]> => {
       height: 318,
       color: getColorFromString(item.title),
       alt_description: item.title,
+      tags: ['Top Anime', 'Jikan'],
       urls: {
         raw: item.images.jpg.large_image_url,
         full: item.images.jpg.large_image_url,
@@ -240,6 +242,7 @@ const fetchWaifuArt = async (tags: string[] = ['waifu']): Promise<Photo[]> => {
       height: img.height || 300,
       color: img.dominant_color || getColorFromString(img.image_id.toString()),
       alt_description: img.tags ? img.tags.map((t: { name: string }) => t.name).join(', ') : 'Anime Art',
+      tags: img.tags ? img.tags.map((t: { name: string }) => t.name) : undefined,
       urls: {
         raw: img.url,
         full: img.url,
@@ -288,6 +291,7 @@ const fetchUnsplashPhotos = async (page: number, query: string): Promise<Photo[]
       height: item.height,
       color: item.color || getColorFromString(item.id),
       alt_description: item.alt_description,
+      tags: ['Unsplash'],
       urls: item.urls,
       user: {
         name: item.user.name,
@@ -326,6 +330,7 @@ const fetchPexelsPhotos = async (page: number, query: string): Promise<Photo[]> 
       height: item.height,
       color: item.avg_color || getColorFromString(item.id.toString()),
       alt_description: item.url,
+      tags: ['Pexels'],
       urls: {
         raw: item.src.original,
         full: item.src.large,
@@ -374,6 +379,7 @@ const fetchPixabayPhotos = async (page: number, query: string): Promise<Photo[]>
       height: item.imageHeight,
       color: getColorFromString(item.id.toString()),
       alt_description: item.tags || null,
+      tags: item.tags ? item.tags.split(',').map(t => t.trim()) : undefined,
       urls: {
         raw: item.largeImageURL,
         full: item.largeImageURL,
@@ -393,6 +399,154 @@ const fetchPixabayPhotos = async (page: number, query: string): Promise<Photo[]>
     }));
   } catch (error) {
     console.warn('Pixabay API Error:', error);
+    return [];
+  }
+};
+
+// Mode 7: Nekos.best (Anime Art)
+const fetchNekosBest = async (amount: number = 20): Promise<Photo[]> => {
+  try {
+    const response = await axios.get(`https://nekos.best/api/v2/neko?amount=${amount}`);
+    if (!response.data.results) return [];
+    
+    return response.data.results.map((img: any) => ({
+      id: `nekos-${Math.random().toString(36).substring(2, 11)}`,
+      width: 400,
+      height: 600,
+      color: getColorFromString(img.artist_name || 'neko'),
+      alt_description: `Anime Art by ${img.artist_name || 'Nekos.best'}`,
+      tags: ['Anime', 'Waifu', 'Nekos', img.artist_name].filter(Boolean) as string[],
+      urls: {
+        raw: img.url,
+        full: img.url,
+        regular: img.url,
+        small: img.url,
+        thumb: img.url,
+      },
+      user: {
+        name: img.artist_name || 'Nekos.best Artist',
+        username: img.artist_href ? img.artist_href.replace('https://www.pixiv.net/en/users/', 'pixiv_') : 'nekos_artist',
+        profile_image: {
+          small: `https://api.dicebear.com/7.x/avataaars/svg?seed=${img.artist_name || 'neko'}`,
+          medium: `https://api.dicebear.com/7.x/avataaars/svg?seed=${img.artist_name || 'neko'}`,
+          large: `https://api.dicebear.com/7.x/avataaars/svg?seed=${img.artist_name || 'neko'}`,
+        }
+      }
+    }));
+  } catch (error) {
+    console.warn('Nekos.best API Error:', error);
+    return [];
+  }
+};
+
+// Mode 8: Reddit Anime (Safe for Work)
+const fetchRedditAnime = async (subreddit: string = 'Moescape', limit: number = 20): Promise<Photo[]> => {
+  try {
+    // Artificial delay to play nice
+    await new Promise(resolve => setTimeout(resolve, 500));
+    const response = await axios.get(`https://www.reddit.com/r/${subreddit}/hot.json?limit=${limit}`);
+    const posts = response.data?.data?.children;
+    if (!posts || !Array.isArray(posts)) return [];
+    
+    return posts
+      .filter((post: any) => post.data.post_hint === 'image' && !post.data.over_18)
+      .map((post: any) => {
+        const d = post.data;
+        let w = 800;
+        let h = 1000;
+        if (d.preview?.images?.[0]?.source) {
+          w = d.preview.images[0].source.width;
+          h = d.preview.images[0].source.height;
+        }
+
+        return {
+          id: `reddit-${d.id}`,
+          width: w,
+          height: h,
+          color: getColorFromString(d.title),
+          alt_description: d.title,
+          tags: ['Anime', 'Reddit', subreddit, d.link_flair_text].filter(Boolean) as string[],
+          urls: {
+            raw: d.url,
+            full: d.url,
+            regular: d.url,
+            small: d.thumbnail !== 'default' && d.thumbnail !== 'self' ? d.thumbnail : d.url,
+            thumb: d.thumbnail !== 'default' && d.thumbnail !== 'self' ? d.thumbnail : d.url,
+          },
+          user: {
+            name: `u/${d.author}`,
+            username: d.author,
+            profile_image: {
+              small: `https://api.dicebear.com/7.x/avataaars/svg?seed=${d.author}`,
+              medium: `https://api.dicebear.com/7.x/avataaars/svg?seed=${d.author}`,
+              large: `https://api.dicebear.com/7.x/avataaars/svg?seed=${d.author}`,
+            }
+          }
+        };
+      });
+  } catch (error) {
+    console.warn('Reddit API Error:', error);
+    return [];
+  }
+};
+
+// Mode 9: Safebooru (Safe Anime Image Board)
+const fetchSafebooru = async (page: number, query: string = ''): Promise<Photo[]> => {
+  try {
+    const defaultQuery = 'rating:safe';
+    const tagQuery = query ? `${query.replace(/\s+/g, '_')} rating:safe` : defaultQuery;
+
+    const response = await axios.get('https://safebooru.org/index.php', {
+      params: {
+        page: 'dapi',
+        s: 'post',
+        q: 'index',
+        json: 1,
+        limit: 20,
+        pid: page - 1, // Safebooru's PID is 0-indexed sometimes, but depends. It's usually 0-based for json.
+        tags: tagQuery
+      }
+    });
+    
+    // Safebooru returns empty string or no array if no results
+    if (!response.data || !Array.isArray(response.data)) return [];
+
+    return response.data.map((img: any) => {
+      // Create URLs manually
+      const fullUrl = `https://safebooru.org/images/${img.directory}/${img.image}`;
+      // Thumbnails often use .jpg regardless of the original image extension
+      const extMatch = img.image.lastIndexOf('.');
+      const nameWithoutExt = extMatch !== -1 ? img.image.substring(0, extMatch) : img.image;
+      const thumbUrl = `https://safebooru.org/thumbnails/${img.directory}/thumbnail_${nameWithoutExt}.jpg`;
+      const sampleUrl = img.sample ? `https://safebooru.org/samples/${img.directory}/sample_${nameWithoutExt}.jpg` : fullUrl;
+
+      return {
+        id: `safebooru-${img.id}`,
+        width: img.width,
+        height: img.height,
+        color: getColorFromString(img.tags.substring(0, 5)),
+        alt_description: img.tags.replace(/_/g, ' '),
+        tags: ['Safebooru', ...img.tags.split(' ').slice(0, 5)].filter(Boolean) as string[],
+        urls: {
+          raw: fullUrl,
+          full: fullUrl,
+          regular: sampleUrl,
+          small: thumbUrl,
+          thumb: thumbUrl,
+        },
+        user: {
+          name: img.owner || 'Safebooru Artist',
+          username: `safebooru_${img.owner}`,
+          profile_image: {
+            small: `https://api.dicebear.com/7.x/avataaars/svg?seed=${img.owner}`,
+            medium: `https://api.dicebear.com/7.x/avataaars/svg?seed=${img.owner}`,
+            large: `https://api.dicebear.com/7.x/avataaars/svg?seed=${img.owner}`,
+          }
+        }
+      };
+    });
+  } catch (error) {
+    console.warn('Safebooru API Error:', error);
     return [];
   }
 };
@@ -582,26 +736,34 @@ export const fetchPhotos = async (page: number = 1, query: string = ''): Promise
 
     if (query && query.trim().length > 0) {
       const waifuTags = getWaifuTags(query);
-      const [animeResults, waifuResults, unsplashResults, pexelsResults, pixabayResults] = await Promise.all([
+      const isAnimeTopic = ['anime', 'shonen', 'romance', 'fantasy', 'slice of life', 'cyberpunk'].includes(query.toLowerCase());
+      
+      const [animeResults, waifuResults, nekosResults, redditResults, unsplashResults, pexelsResults, pixabayResults, safebooruResults] = await Promise.all([
         searchAnime(query, page),
         fetchWaifuArt(waifuTags),
+        isAnimeTopic ? fetchNekosBest(page * 10) : Promise.resolve([]),
+        isAnimeTopic ? fetchRedditAnime('Moescape', 15) : Promise.resolve([]),
         fetchUnsplashPhotos(page, query),
         fetchPexelsPhotos(page, query),
         fetchPixabayPhotos(page, query),
+        isAnimeTopic ? fetchSafebooru(page, query) : Promise.resolve([]),
       ]);
-      const combined = mergeUnique(supabasePins, animeResults, waifuResults, unsplashResults, pexelsResults, pixabayResults);
+      const combined = mergeUnique(supabasePins, animeResults, waifuResults, nekosResults, redditResults, unsplashResults, pexelsResults, pixabayResults, safebooruResults);
       if (combined.length === 0 && page === 1) return getFallbackPhotos(page, query); 
       return combined;
     } else {
       const defaultQuery = 'anime';
-      const [anime, art, unsplashResults, pexelsResults, pixabayResults] = await Promise.all([
+      const [anime, art, nekosResults, redditResults, unsplashResults, pexelsResults, pixabayResults, safebooruResults] = await Promise.all([
         fetchSuggestedAnime(page).catch(e => { console.error('Anime fetch failed', e); return []; }),
         fetchWaifuArt(getWaifuTags(defaultQuery)).catch(e => { console.error('Waifu fetch failed', e); return []; }),
+        fetchNekosBest(15).catch(e => { console.error('Nekos fetch failed', e); return []; }),
+        fetchRedditAnime('Moescape', 15).catch(e => { console.error('Reddit fetch failed', e); return []; }),
         fetchUnsplashPhotos(page, defaultQuery),
         fetchPexelsPhotos(page, defaultQuery),
         fetchPixabayPhotos(page, defaultQuery),
+        fetchSafebooru(page, '').catch(e => { console.error('Safebooru fetch failed', e); return []; }),
       ]);
-      const combined = mergeUnique(supabasePins, interleaveWeighted(anime, art), unsplashResults, pexelsResults, pixabayResults);
+      const combined = mergeUnique(supabasePins, interleaveWeighted(anime, art), nekosResults, redditResults, unsplashResults, pexelsResults, pixabayResults, safebooruResults);
       
       if (combined.length === 0) {
          console.warn("Both APIs failed or returned empty. Using Mock Data.");

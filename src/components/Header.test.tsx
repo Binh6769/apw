@@ -3,6 +3,13 @@ import { render, screen, fireEvent } from '@testing-library/react';
 import { BrowserRouter } from 'react-router-dom';
 import { Header } from './Header';
 
+vi.stubGlobal('localStorage', {
+  getItem: vi.fn(),
+  setItem: vi.fn(),
+  removeItem: vi.fn(),
+  clear: vi.fn(),
+});
+
 // Mock the hooks
 const mockNavigate = vi.fn();
 const mockSearchParams = new URLSearchParams();
@@ -52,23 +59,23 @@ describe('Header', () => {
 
   it('renders correctly', () => {
     renderHeader();
-    expect(screen.getByPlaceholderText(/Search Anime, Manga.../i)).toBeDefined();
+    expect(screen.getAllByPlaceholderText(/Search Anime, Manga.../i)[0]).toBeDefined();
     expect(screen.getByText('Home')).toBeDefined();
-    expect(screen.getByText('Create')).toBeDefined();
+    expect(screen.getAllByText('Create')[0]).toBeDefined();
   });
 
   it('handles search input', () => {
     renderHeader();
-    const input = screen.getByPlaceholderText(/Search Anime, Manga.../i);
+    const input = screen.getAllByPlaceholderText(/Search Anime, Manga.../i)[0];
     fireEvent.change(input, { target: { value: 'Naruto' } });
     fireEvent.keyDown(input, { key: 'Enter', code: 'Enter', charCode: 13 });
-    
+
     expect(mockNavigate).toHaveBeenCalledWith('/?q=Naruto');
   });
 
   it('opens create menu', () => {
     renderHeader();
-    const createBtn = screen.getByText('Create');
+    const createBtn = screen.getAllByText('Create')[0];
     fireEvent.click(createBtn);
     expect(screen.getByText('Create Idea Pin')).toBeDefined();
   });

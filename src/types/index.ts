@@ -20,4 +20,5 @@ export interface Photo {
       large: string;
     };
   };
+  tags?: string[];
 }

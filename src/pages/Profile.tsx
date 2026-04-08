@@ -68,17 +68,17 @@ export function Profile() {
   };
 
   return (
-    <div className="min-h-screen bg-white pt-20">
+    <div className="min-h-screen bg-anime-bg text-anime-text pt-20">
       <Header />
-      
+
       <div className="flex flex-col items-center pt-8 pb-8">
         <div className="relative w-32 h-32 mb-4 group">
           <div className="w-32 h-32 rounded-full overflow-hidden bg-gray-200">
-             <img 
-               src={userProfile?.avatar_url || 'https://api.dicebear.com/7.x/avataaars/svg?seed=' + user?.id} 
-               alt={fullName} 
-               className="w-full h-full object-cover" 
-             />
+            <img
+              src={userProfile?.avatar_url || 'https://api.dicebear.com/7.x/avataaars/svg?seed=' + user?.id}
+              alt={fullName}
+              className="w-full h-full object-cover"
+            />
           </div>
           <button
             onClick={() => setShowAvatarSelector(true)}
@@ -91,36 +91,36 @@ export function Profile() {
         <h1 className="text-3xl font-semibold mb-2">{fullName}</h1>
         <p className="text-gray-500 text-sm mb-2">{user?.email}</p>
         {userProfile?.bio && <p className="text-gray-600 text-sm mb-6 max-w-md text-center">{userProfile.bio}</p>}
-        
+
         <div className="flex gap-2 mb-8">
-           <button className="px-4 py-2 bg-gray-200 hover:bg-gray-300 rounded-full font-semibold transition-colors">Share</button>
-           <button 
-             onClick={() => navigate('/settings')}
-             className="px-4 py-2 bg-gray-200 hover:bg-gray-300 rounded-full font-semibold transition-colors"
-           >
-             Edit Profile
-           </button>
+          <button className="px-4 py-2 bg-anime-surface hover:bg-anime-border rounded-full font-semibold transition-colors border border-anime-border">Share</button>
+          <button
+            onClick={() => navigate('/settings')}
+            className="px-4 py-2 bg-anime-surface hover:bg-anime-border rounded-full font-semibold transition-colors border border-anime-border"
+          >
+            Edit Profile
+          </button>
         </div>
 
         <div className="flex gap-8 border-b-2 border-transparent relative">
-           <div 
-             onClick={() => setActiveTab('created')}
-             className={clsx(
-               "pb-2 font-semibold cursor-pointer transition-colors border-b-4",
-               activeTab === 'created' ? "border-black" : "border-transparent text-gray-500 hover:text-black"
-             )}
-           >
-             Created ({createdPins.length})
-           </div>
-           <div 
-             onClick={() => setActiveTab('saved')}
-             className={clsx(
-               "pb-2 font-semibold cursor-pointer transition-colors border-b-4",
-               activeTab === 'saved' ? "border-black" : "border-transparent text-gray-500 hover:text-black"
-             )}
-           >
-             Saved ({savedPins.length})
-           </div>
+          <div
+            onClick={() => setActiveTab('created')}
+            className={clsx(
+              "pb-2 font-semibold cursor-pointer transition-colors border-b-4",
+              activeTab === 'created' ? "border-anime-primary text-anime-primary" : "border-transparent text-gray-400 hover:text-anime-text"
+            )}
+          >
+            Created ({createdPins.length})
+          </div>
+          <div
+            onClick={() => setActiveTab('saved')}
+            className={clsx(
+              "pb-2 font-semibold cursor-pointer transition-colors border-b-4",
+              activeTab === 'saved' ? "border-anime-primary text-anime-primary" : "border-transparent text-gray-400 hover:text-anime-text"
+            )}
+          >
+            Saved ({savedPins.length})
+          </div>
         </div>
       </div>
 
@@ -144,21 +144,21 @@ export function Profile() {
               {activeTab === 'saved' ? "You haven't saved any Pins yet" : "You haven't created any Pins yet"}
             </h3>
             <p className="text-gray-500 mb-6">
-              {activeTab === 'saved' 
-                ? "Find ideas from things you love and save them to your profile." 
+              {activeTab === 'saved'
+                ? "Find ideas from things you love and save them to your profile."
                 : "Create your first Pin to share your ideas with the world."}
             </p>
-            <button 
+            <button
               onClick={() => activeTab === 'saved' ? navigate('/') : navigate('/create-pin')}
-              className="px-6 py-2 bg-black text-white rounded-full hover:bg-gray-800 transition-colors"
+              className="px-6 py-2 bg-anime-primary text-white rounded-full hover:bg-anime-secondary transition-colors"
               type="button"
             >
               {activeTab === 'saved' ? "Browse Pins" : "Create Pin"}
             </button>
           </div>
         ) : (
-          <MasonryGrid 
-            photos={pinsToDisplay} 
+          <MasonryGrid
+            photos={pinsToDisplay}
             onPinClick={handlePinClick}
             onPinDelete={activeTab === 'created' ? handleCreatedDelete : undefined}
           />

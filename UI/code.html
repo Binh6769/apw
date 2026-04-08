@@ -1,0 +1,162 @@
+<!DOCTYPE html>
+<html class="dark" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>AnimeConnect - Dark Mode</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Quicksand:wght@400;500;600;700&amp;family=Grandstander:wght@400;700;800&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<style type="text/tailwindcss">
+        :root {
+            --neon-purple: #a855f7;
+            --neon-cyan: #22d3ee;
+            --dark-bg: #0f172a;
+            --midnight: #020617;
+            --glass-bg: rgba(15, 23, 42, 0.7);
+            --glass-border: rgba(168, 85, 247, 0.4);
+        }
+        .neon-gradient {
+            background: linear-gradient(135deg, #a855f7 0%, #22d3ee 100%);
+        }
+        .neon-glow {
+            box-shadow: 0 0 20px rgba(168, 85, 247, 0.5), 0 0 5px rgba(34, 211, 238, 0.3);
+        }
+        .neon-border-glow {
+            box-shadow: 0 0 10px rgba(168, 85, 247, 0.2);
+            border: 1px solid var(--glass-border);
+        }
+        .glass-card {
+            background: var(--glass-bg);
+            backdrop-filter: blur(16px);
+            -webkit-backdrop-filter: blur(16px);
+        }
+        .particle {
+            position: absolute;
+            background: white;
+            border-radius: 50%;
+            opacity: 0.3;
+            pointer-events: none;
+        }
+    </style>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    colors: {
+                        "primary": "#a855f7",
+                        "secondary": "#22d3ee",
+                        "dark-navy": "#020617",
+                        "charcoal": "#1e293b",
+                        "soft-silver": "#cbd5e1",
+                    },
+                    fontFamily: {
+                        "display": ["Grandstander", "cursive"],
+                        "body": ["Quicksand", "sans-serif"]
+                    },
+                    borderRadius: {
+                        "anime": "2rem",
+                    },
+                },
+            },
+        }
+    </script>
+</head>
+<body class="bg-dark-navy font-body overflow-hidden text-soft-silver">
+<div class="relative flex min-h-screen w-full flex-col">
+<div class="absolute inset-0 z-0 pointer-events-none overflow-hidden">
+<div class="particle w-1 h-1 top-1/4 left-1/4 animate-pulse"></div>
+<div class="particle w-2 h-2 top-1/2 left-1/3 opacity-20"></div>
+<div class="particle w-1 h-1 top-3/4 left-2/3 animate-pulse"></div>
+<div class="particle w-2 h-2 top-1/4 left-3/4 opacity-10"></div>
+<div class="particle w-1.5 h-1.5 top-2/3 left-1/4 opacity-25"></div>
+<div class="particle w-1 h-1 top-1/2 left-[85%] animate-pulse"></div>
+</div>
+<main class="flex flex-1 flex-row relative z-10">
+<div class="hidden lg:flex lg:w-[50%] relative overflow-hidden">
+<div class="absolute inset-0 bg-center bg-cover transition-transform duration-1000" style='background-image: url("https://lh3.googleusercontent.com/aida-public/AB6AXuCMEJi26qe7ON1Zh3o7jQaI4eqZCmYmNZVW8cmNDsFJx03m6idDhBXLPIsKnYfDL6bZykdVgyZEUNXj2OMQ0KQLZZ1o7s96MfgaqLqUecIqwRCTqy2BYKLhn6JO4D5xE775AhwoAoXDggHs_zkwiB1h7TXbK_ISOs1EBlUAqy81b73P9x224u4Ki-Vz0a7sN2MHsZ9zzFXjIu0uc54BMcVfxaHQ5fVEB3yv2KpxEizK-kM2b3ZFAxeKf4ph1bGRhJLawyyN8VSG_18");'>
+<div class="absolute inset-0 bg-gradient-to-b from-indigo-900/60 via-purple-900/40 to-dark-navy/80 mix-blend-multiply"></div>
+<div class="absolute inset-0 bg-gradient-to-r from-transparent to-dark-navy"></div>
+</div>
+<div class="absolute top-10 left-10 p-6 glass-card rounded-anime z-10 neon-border-glow border-none">
+<h1 class="font-display text-4xl text-white font-black drop-shadow-[0_0_10px_rgba(168,85,247,0.8)]">AnimeConnect</h1>
+<p class="text-secondary font-bold text-lg mt-1">Night City Vibes ✨</p>
+</div>
+<div class="absolute bottom-10 left-10 max-w-md p-8 glass-card rounded-anime z-10 neon-border-glow border-none">
+<p class="text-white text-xl font-medium leading-relaxed italic drop-shadow-md">
+                    "Under the neon lights, we find our digital soul."
+                </p>
+</div>
+<div class="absolute top-1/3 right-1/4 w-32 h-32 bg-primary/20 blur-[60px] rounded-full"></div>
+<div class="absolute bottom-1/4 left-1/3 w-40 h-40 bg-secondary/20 blur-[80px] rounded-full"></div>
+</div>
+<div class="flex-1 flex items-center justify-center p-6 bg-dark-navy relative overflow-hidden">
+<div class="absolute top-[-10%] right-[-10%] w-96 h-96 bg-primary/10 rounded-full blur-[100px]"></div>
+<div class="absolute bottom-[-10%] left-[10%] w-80 h-80 bg-secondary/10 rounded-full blur-[100px]"></div>
+<div class="w-full max-w-[460px] glass-card rounded-[2.5rem] p-8 md:p-12 relative z-20 neon-border-glow">
+<div class="flex justify-center mb-6">
+<div class="w-20 h-20 neon-gradient rounded-full flex items-center justify-center text-white neon-glow">
+<span class="material-symbols-outlined text-4xl">nightlight</span>
+</div>
+</div>
+<div class="text-center mb-8">
+<h2 class="font-display text-3xl text-white font-bold tracking-tight">Welcome Back</h2>
+<p class="text-soft-silver/70 font-medium mt-2">The night is young, sign in to continue</p>
+</div>
+<form class="space-y-6">
+<div class="space-y-2">
+<label class="flex items-center gap-2 text-soft-silver text-sm font-bold ml-1">
+<span class="material-symbols-outlined text-primary text-lg">alternate_email</span>
+                            Username
+                        </label>
+<input class="w-full rounded-2xl text-white focus:ring-4 focus:ring-primary/20 border-2 border-white/5 bg-charcoal/50 h-14 placeholder:text-gray-500 px-6 text-base font-medium transition-all focus:border-primary outline-none" placeholder="night_walker_99" type="text"/>
+</div>
+<div class="space-y-2">
+<div class="flex justify-between items-center ml-1">
+<label class="flex items-center gap-2 text-soft-silver text-sm font-bold">
+<span class="material-symbols-outlined text-secondary text-lg">vpn_key</span>
+                                Access Code
+                            </label>
+<a class="text-xs font-bold text-secondary hover:text-primary transition-colors" href="#">Forgot Code?</a>
+</div>
+<div class="relative group">
+<input class="w-full rounded-2xl text-white focus:ring-4 focus:ring-secondary/20 border-2 border-white/5 bg-charcoal/50 h-14 placeholder:text-gray-500 px-6 pr-12 text-base font-medium transition-all focus:border-secondary outline-none" placeholder="••••••••" type="password"/>
+<div class="absolute right-4 top-1/2 -translate-y-1/2 text-gray-500 cursor-pointer hover:text-secondary">
+<span class="material-symbols-outlined">visibility</span>
+</div>
+</div>
+</div>
+<button class="w-full flex cursor-pointer items-center justify-center rounded-2xl h-14 neon-gradient text-white text-lg font-display font-bold shadow-xl neon-glow hover:brightness-110 active:scale-95 transition-all">
+                        Enter Matrix ⚡
+                    </button>
+</form>
+<div class="relative flex items-center py-8">
+<div class="flex-grow border-t border-white/10"></div>
+<span class="flex-shrink mx-4 text-gray-500 text-xs font-bold uppercase tracking-[0.2em]">Quick Access</span>
+<div class="flex-grow border-t border-white/10"></div>
+</div>
+<div class="grid grid-cols-2 gap-4">
+<button class="flex items-center justify-center gap-2 h-12 rounded-2xl border border-white/10 bg-white/5 hover:bg-white/10 hover:border-primary/50 transition-all duration-300">
+<span class="material-symbols-outlined text-primary">terminal</span>
+<span class="text-sm font-bold text-soft-silver">Node</span>
+</button>
+<button class="flex items-center justify-center gap-2 h-12 rounded-2xl border border-white/10 bg-white/5 hover:bg-white/10 hover:border-secondary/50 transition-all duration-300">
+<span class="material-symbols-outlined text-secondary">token</span>
+<span class="text-sm font-bold text-soft-silver">Auth</span>
+</button>
+</div>
+<div class="text-center mt-8">
+<p class="text-gray-500 text-sm font-medium">
+                        First time in the dark? 
+                        <a class="text-primary font-bold hover:text-secondary ml-1 transition-colors" href="#">Sync New Profile</a>
+</p>
+</div>
+<div class="absolute bottom-4 right-4 text-secondary/20">
+<span class="material-symbols-outlined text-4xl">deployed_code</span>
+</div>
+</div>
+</div>
+</main>
+</div>
+
+</body></html>

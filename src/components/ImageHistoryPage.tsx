@@ -163,22 +163,22 @@ export default function ImageHistoryPage() {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 pt-20 pb-8">
+    <div className="min-h-screen bg-anime-bg text-anime-text pt-20 pb-8">
       <Header />
       <div className="max-w-7xl mx-auto px-4">
         {/* Header */}
         <div className="mb-8">
           <div className="flex items-center gap-3 mb-4">
-            <Clock className="w-8 h-8 text-blue-600" />
-            <h1 className="text-4xl font-bold text-gray-900">Image History</h1>
+            <Clock className="w-8 h-8 text-anime-primary" />
+            <h1 className="text-4xl font-bold text-anime-text">Image History</h1>
           </div>
-          <p className="text-gray-600">
+          <p className="text-gray-300">
             View all the images you've explored. Search, filter by time, and manage your viewing history.
           </p>
         </div>
 
         {/* Search and Filters */}
-        <div className="bg-white rounded-lg shadow p-6 mb-8">
+        <div className="bg-anime-surface rounded-lg shadow p-6 mb-8">
           {/* Search Bar */}
           <div className="mb-4">
             <div className="relative">
@@ -188,7 +188,7 @@ export default function ImageHistoryPage() {
                 placeholder="Search by title or description..."
                 value={searchQuery}
                 onChange={handleSearch}
-                className="w-full pl-12 pr-4 py-3 rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-gray-50"
+                className="w-full pl-12 pr-4 py-3 rounded-lg border border-anime-border focus:outline-none focus:ring-2 focus:ring-anime-primary bg-anime-bg"
               />
             </div>
 
@@ -204,8 +204,8 @@ export default function ImageHistoryPage() {
                   className={clsx(
                     "px-4 py-2 rounded-lg font-medium transition-colors text-sm",
                     timeFilter === filter
-                      ? "bg-blue-600 text-white"
-                      : "bg-gray-100 border border-gray-300 text-gray-700 hover:bg-gray-200"
+                      ? "bg-anime-primary text-white"
+                      : "bg-anime-surface border border-anime-border border border-anime-border text-anime-text hover:bg-anime-surface-muted"
                   )}
                 >
                   {filter === 'all' ? 'All Time' : `By ${filter.charAt(0).toUpperCase() + filter.slice(1)}`}
@@ -220,7 +220,7 @@ export default function ImageHistoryPage() {
                   type="date"
                   value={selectedDate}
                   onChange={(e) => setSelectedDate(e.target.value)}
-                  className="px-4 py-2 rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  className="px-4 py-2 rounded-lg border border-anime-border focus:outline-none focus:ring-2 focus:ring-anime-primary"
                 />
                 {selectedDate && (
                   <button
@@ -236,8 +236,8 @@ export default function ImageHistoryPage() {
 
             {/* Stats */}
             {filteredHistory.length > 0 && (
-              <div className="text-sm text-gray-600">
-                Showing <span className="font-semibold text-gray-900">{filteredHistory.length}</span> of <span className="font-semibold text-gray-900">{historyCount}</span> images
+              <div className="text-sm text-gray-300">
+                Showing <span className="font-semibold text-anime-text">{filteredHistory.length}</span> of <span className="font-semibold text-anime-text">{historyCount}</span> images
               </div>
             )}
           </div>
@@ -250,7 +250,7 @@ export default function ImageHistoryPage() {
               className={clsx(
                 "px-4 py-2 rounded-lg font-medium transition-colors flex items-center gap-2 text-sm",
                 isClearing || filteredHistory.length === 0
-                  ? "bg-gray-200 text-gray-600 cursor-not-allowed"
+                  ? "bg-anime-surface-muted text-gray-300 cursor-not-allowed"
                   : "bg-red-100 text-red-700 hover:bg-red-200"
               )}
             >
@@ -269,7 +269,7 @@ export default function ImageHistoryPage() {
           ) : filteredHistory.length === 0 ? (
             <div className="max-w-4xl mx-auto text-center">
               <AlertCircle className="w-16 h-16 text-gray-300 mx-auto mb-4" />
-              <p className="text-gray-600 text-lg">
+              <p className="text-gray-300 text-lg">
                 {searchQuery ? 'No images found matching your search.' : 'No image history yet. Start viewing images to build your history!'}
               </p>
             </div>

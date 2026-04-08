@@ -24,7 +24,7 @@ export function Saved() {
   };
 
   return (
-    <div className="min-h-screen bg-white pt-20">
+    <div className="min-h-screen bg-anime-bg text-anime-text pt-20">
       <Header />
 
       <div className="container mx-auto">
@@ -46,14 +46,14 @@ export function Saved() {
             <p className="text-gray-500 mb-6">Save pins from the home page to see them here</p>
             <button
               onClick={() => navigate('/')}
-              className="px-6 py-2 bg-black text-white rounded-full hover:bg-gray-800 transition-colors"
+              className="px-6 py-2 bg-anime-primary text-white rounded-full hover:bg-anime-secondary transition-colors mt-4"
               type="button"
             >
               Browse Pins
             </button>
           </div>
         ) : (
-          <MasonryGrid 
+          <MasonryGrid
             photos={savedPins}
             onPinClick={handlePinClick}
           />

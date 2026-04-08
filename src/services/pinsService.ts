@@ -41,11 +41,15 @@ const craftDescription = (pin: Pin) => {
   return uniqueParts.join(' | ');
 };
 
+import { generateTagsForImage } from '../utils/aiTagger';
+
 // Convert Pin to Photo format for display
 const convertPinToPhoto = (pin: Pin, userProfile?: UserProfile): Photo => {
   const userName = userProfile
     ? `${userProfile.first_name || ''} ${userProfile.last_name || ''}`.trim() || 'Anonymous'
     : 'Anonymous';
+
+  const tags = pin.category ? pin.category.split(',').map(t => t.trim()).filter(Boolean) : undefined;
 
   return {
     id: pin.id,
@@ -69,6 +73,7 @@ const convertPinToPhoto = (pin: Pin, userProfile?: UserProfile): Photo => {
         large: userProfile?.avatar_url || 'https://api.dicebear.com/7.x/avataaars/svg?seed=default',
       },
     },
+    tags: tags?.length ? tags : undefined,
   };
 };
 
@@ -288,6 +293,12 @@ export const createPin = async (
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) throw new Error('User not authenticated');
 
+    let finalCategory = category;
+    if (!finalCategory) {
+      const aiTags = await generateTagsForImage(imageUrl, title, description);
+      finalCategory = aiTags.join(', ');
+    }
+
     const { data, error } = await supabase
       .from('pins')
       .insert({
@@ -298,7 +309,7 @@ export const createPin = async (
         image_width: imageWidth,
         image_height: imageHeight,
         image_color: imageColor,
-        category,
+        category: finalCategory,
         source_url: sourceUrl,
       })
       .select()

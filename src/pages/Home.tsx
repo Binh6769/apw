@@ -1,9 +1,10 @@
 import { useEffect, useMemo, useRef, useCallback, useState } from 'react';
 import { useInfiniteQuery } from '@tanstack/react-query';
 import { useSearchParams, useNavigate } from 'react-router-dom';
-import { fetchPhotos } from '../api/unsplash'; 
+import { fetchPhotos } from '../api/unsplash';
 import { MasonryGrid } from '../components/MasonryGrid';
 import { Header } from '../components/Header';
+import { SidebarFilter } from '../components/SidebarFilter';
 import { Loader2 } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { supabase } from '../services/supabase';
@@ -17,6 +18,7 @@ export function Home() {
   const observerTarget = useRef<HTMLDivElement>(null);
   const [selectedTopic, setSelectedTopic] = useState('anime');
   const [showTopicBar, setShowTopicBar] = useState(false);
+  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
 
   const DEFAULT_TOPIC = 'anime';
   const TOPIC_OPTIONS = [
@@ -78,6 +80,16 @@ export function Home() {
     });
   }, [data]);
 
+  const availableTags = useMemo(() => {
+    const tags = new Set<string>();
+    photos.forEach(p => {
+      if (p.tags) {
+        p.tags.forEach(t => tags.add(t));
+      }
+    });
+    return Array.from(tags).slice(0, 30); // limit to 30 dynamic tags
+  }, [photos]);
+
   // Intersection Observer for Infinite Scroll
   const handleObserver = useCallback((entries: IntersectionObserverEntry[]) => {
     const [target] = entries;
@@ -92,7 +104,7 @@ export function Home() {
 
     const observer = new IntersectionObserver(handleObserver, {
       root: null,
-      rootMargin: "500px", 
+      rootMargin: "500px",
       threshold: 0,
     });
 
@@ -127,28 +139,34 @@ export function Home() {
   };
 
   return (
-    <div className="min-h-screen bg-white pt-20">
+    <div className="min-h-screen bg-anime-bg text-anime-text pt-20">
       <Header />
-      
-      <div className="container mx-auto">
+
+      <div className="flex">
+        <SidebarFilter 
+          isOpen={isSidebarOpen} 
+          onToggle={() => setIsSidebarOpen(!isSidebarOpen)} 
+          availableTags={availableTags}
+        />
+
+        <div className="flex-1 min-w-0 md:container md:mx-auto">
         {showTopicBar && (
           <div className="px-4 pt-6 pb-2">
-            <div className="bg-gray-50 border border-gray-200 rounded-3xl p-4 md:p-6">
+            <div className="bg-anime-surface border border-anime-border rounded-3xl p-4 md:p-6 shadow-[0_0_15px_rgba(124,58,237,0.1)]">
               <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
                 <div>
-                  <p className="text-sm uppercase tracking-wide text-gray-500 font-semibold">Welcome</p>
-                  <h2 className="text-xl font-semibold text-gray-900">Choose an anime topic to personalize your feed</h2>
+                  <p className="text-sm uppercase tracking-wide text-anime-secondary font-semibold">Welcome</p>
+                  <h2 className="text-xl font-semibold text-anime-text">Choose an anime topic to personalize your feed</h2>
                 </div>
                 <div className="flex flex-wrap gap-2">
                   {TOPIC_OPTIONS.map((topic) => (
                     <button
                       key={topic.id}
                       onClick={() => handleTopicSelect(topic.id)}
-                      className={`px-4 py-2 rounded-full text-sm font-semibold transition-colors ${
-                        selectedTopic === topic.id
-                          ? 'bg-black text-white'
-                          : 'bg-white border border-gray-300 text-gray-800 hover:bg-gray-100'
-                      }`}
+                      className={`px-4 py-2 rounded-full text-sm font-semibold transition-colors ${selectedTopic === topic.id
+                          ? 'bg-anime-primary text-white shadow-[0_0_10px_rgba(124,58,237,0.5)]'
+                          : 'bg-anime-bg border border-anime-border text-anime-muted hover:bg-anime-surface'
+                        }`}
                       type="button"
                     >
                       {topic.label}
@@ -161,46 +179,47 @@ export function Home() {
         )}
 
         {query && (
-           <div className="px-4 py-4 text-center">
-              <h2 className="text-xl font-semibold">Results for "{query}"</h2>
-           </div>
+          <div className="px-4 py-4 text-center">
+            <h2 className="text-xl font-semibold text-anime-text">Results for "{query}"</h2>
+          </div>
         )}
 
         {status === 'pending' ? (
-           <div className="flex justify-center items-center h-[50vh]">
-             <Loader2 className="animate-spin text-gray-500" size={32} />
-           </div>
+          <div className="flex justify-center items-center h-[50vh]">
+            <Loader2 className="animate-spin text-anime-primary" size={32} />
+          </div>
         ) : status === 'error' ? (
-           <div className="text-center py-10 text-red-500">
-             Error loading content. API might be rate limited.
-             <button onClick={() => refetch()} className="ml-2 underline">Retry</button>
-           </div>
+          <div className="text-center py-10 text-anime-cta">
+            Error loading content. API might be rate limited.
+            <button onClick={() => refetch()} className="ml-2 underline">Retry</button>
+          </div>
         ) : photos.length === 0 ? (
-           <div className="text-center py-20 text-gray-500">
-             {query ? 'No results found. Try a different keyword.' : 'No suggested content available at the moment.'}
-           </div>
+          <div className="text-center py-20 text-anime-muted">
+            {query ? 'no image available' : 'No suggested content available at the moment.'}
+          </div>
         ) : (
-           <>
-             <MasonryGrid 
-               photos={photos} 
-               onPinClick={handlePinClick} 
-             />
-             {/* Sentry div for IntersectionObserver */}
-             <div ref={observerTarget} className="h-10 w-full" />
-           </>
+          <>
+            <MasonryGrid
+              photos={photos}
+              onPinClick={handlePinClick}
+            />
+            {/* Sentry div for IntersectionObserver */}
+            <div ref={observerTarget} className="h-10 w-full" />
+          </>
         )}
 
         {isFetchingNextPage && (
           <div className="flex justify-center py-8">
-            <Loader2 className="animate-spin text-gray-500" size={24} />
+            <Loader2 className="animate-spin text-anime-primary" size={24} />
           </div>
         )}
-        
+
         {!hasNextPage && photos.length > 0 && (
-          <div className="text-center py-8 text-gray-400">
+          <div className="text-center py-8 text-anime-muted">
             You've reached the end!
           </div>
         )}
+        </div>
       </div>
     </div>
   );
