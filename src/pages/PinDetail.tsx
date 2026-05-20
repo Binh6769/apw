@@ -134,7 +134,7 @@ export function PinDetail() {
     status: relatedStatus,
   } = useInfiniteQuery({
     queryKey: ['related', id],
-    queryFn: ({ pageParam = 1 }) =>
+    queryFn: () =>
       photo ? fetchRelatedPhotos(id || '') : Promise.resolve({ items: [], hasMore: false }),
     getNextPageParam: (lastPage, pages) => (lastPage.hasMore ? pages.length + 1 : undefined),
     initialPageParam: 1,

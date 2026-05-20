@@ -105,7 +105,7 @@ export const getCategoriesForPins = async (pinIds: string[]): Promise<Map<string
     for (const item of data || []) {
       const existing = map.get(item.pin_id) || [];
       if (item.categories) {
-        existing.push(item.categories);
+        existing.push(item.categories as unknown as Category);
       }
       map.set(item.pin_id, existing);
     }

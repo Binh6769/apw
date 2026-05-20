@@ -19,7 +19,7 @@ export const fetchRelatedPhotos = async (id: string): Promise<{ items: Photo[]; 
   const category = pin.category || pin.tags?.[0] || '';
   if (!category) {
     // If no category, fetch recent pins as fallback
-    const recentPins = await fetchPinsFromSupabase(1, '', 12);
+    const recentPins = await fetchPinsFromSupabase(1, 12, '');
     return {
       items: recentPins.filter(p => p.id !== id).slice(0, 12),
       hasMore: false,

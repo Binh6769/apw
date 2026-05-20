@@ -28,20 +28,6 @@ interface UserProfile {
 
 const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
-const craftDescription = (pin: Pin) => {
-  const parts = [
-    pin.title,
-    pin.description,
-    pin.category ? `Category: ${pin.category}` : null,
-    pin.image_color ? `Palette ${pin.image_color}` : null,
-  ].filter(Boolean);
-
-  if (parts.length === 0) return 'Visual inspiration from the community.';
-
-  const uniqueParts = Array.from(new Set(parts.map((p) => p?.trim()))).slice(0, 3);
-  return uniqueParts.join(' | ');
-};
-
 import { generateTagsForImage } from '../utils/aiTagger';
 
 // Convert Pin to Photo format for display
@@ -95,9 +81,7 @@ const convertPinToPhoto = (pin: Pin, userProfile?: UserProfile, categories?: Cat
 export const fetchPinsFromSupabase = async (
   page: number = 1,
   limit: number = 20,
-  searchQuery?: string,
-  includePrivate: boolean = false,
-  userId?: string
+  searchQuery?: string
 ): Promise<Photo[]> => {
   try {
     const start = (page - 1) * limit;
