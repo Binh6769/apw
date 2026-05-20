@@ -12,6 +12,8 @@ export interface UserProfile {
   website: string | null;
   birth_date: string | null;
   age: number | null;
+  role: 'user' | 'admin' | 'banned';
+  banned_until: string | null;
   updated_at: string;
 }
 
@@ -116,5 +118,96 @@ export const updateUserProfile = async (
   } catch (error) {
     console.error('Error in updateUserProfile:', error);
     return null;
+  }
+};
+
+// Get all user profiles (Admin)
+export const getAllUserProfiles = async (): Promise<UserProfile[]> => {
+  try {
+    const { data, error } = await supabase
+      .from('user_profiles')
+      .select('*')
+      .order('updated_at', { ascending: false });
+
+    if (error) {
+      console.error('Error fetching all user profiles:', error);
+      return [];
+    }
+
+    return data || [];
+  } catch (error) {
+    console.error('Error in getAllUserProfiles:', error);
+    return [];
+  }
+};
+
+// Delete user profile (Admin)
+export const deleteUserProfile = async (userId: string): Promise<boolean> => {
+  try {
+    const { error } = await supabase
+      .from('user_profiles')
+      .delete()
+      .eq('user_id', userId);
+
+    if (error) {
+      console.error('Error deleting user profile:', error);
+      return false;
+    }
+
+    // Attempt to delete pins if possible (RLS might restrict, but trying is fine)
+    await supabase.from('pins').delete().eq('user_id', userId);
+    
+    return true;
+  } catch (error) {
+    console.error('Error in deleteUserProfile:', error);
+    return false;
+  }
+};
+
+// Search user profiles by name, email, or display name
+export const searchUserProfiles = async (query: string): Promise<UserProfile[]> => {
+  try {
+    if (!query.trim()) {
+      return getAllUserProfiles();
+    }
+
+    const searchTerm = `%${query}%`;
+    
+    const { data: profiles, error } = await supabase
+      .from('user_profiles')
+      .select('*')
+      .or(`first_name.ilike.${searchTerm},last_name.ilike.${searchTerm}`)
+      .order('updated_at', { ascending: false })
+      .limit(50);
+
+    if (error) {
+      console.error('Error searching user profiles:', error);
+      return [];
+    }
+
+    return profiles || [];
+  } catch (error) {
+    console.error('Error in searchUserProfiles:', error);
+    return [];
+  }
+};
+
+// Update user role (Admin)
+export const updateUserRole = async (userId: string, role: 'user' | 'admin' | 'banned'): Promise<boolean> => {
+  try {
+    const { error } = await supabase
+      .from('user_profiles')
+      .update({ role, updated_at: new Date().toISOString() })
+      .eq('user_id', userId);
+
+    if (error) {
+      console.error('Error updating user role:', error);
+      return false;
+    }
+
+    return true;
+  } catch (error) {
+    console.error('Error in updateUserRole:', error);
+    return false;
   }
 };

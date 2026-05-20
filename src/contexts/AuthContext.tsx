@@ -3,6 +3,7 @@ import { createContext, useState, useEffect, useContext, useCallback } from 'rea
 import type { ReactNode } from 'react';
 import { supabase } from '../services/supabase';
 import type { Session, User as SupabaseUser } from '@supabase/supabase-js';
+import { getUserRole } from '../services/adminService';
 
 interface SavedAccount {
   userId: string;
@@ -21,10 +22,12 @@ interface AuthContextType {
   loading: boolean;
   savedAccounts: SavedAccount[];
   login: (email: string, password: string) => Promise<{ error: string | null }>;
-  signup: (email: string, password: string, firstName: string, lastName: string) => Promise<{ error: string | null }>;
+  signup: (email: string, password: string, firstName: string, lastName: string, category?: string) => Promise<{ error: string | null }>;
   switchAccount: (userId: string) => Promise<{ error: string | null }>;
   updateAccountProfile: (userId: string, avatarUrl: string | null, displayName: string | null) => void;
   logout: () => Promise<void>;
+  isAdmin: boolean;
+  refreshAdminRole: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -57,6 +60,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<SupabaseUser | null>(null);
   const [loading, setLoading] = useState(true);
   const [savedAccounts, setSavedAccounts] = useState<SavedAccount[]>([]);
+  const [isAdmin, setIsAdmin] = useState(false);
 
   useEffect(() => {
     setSavedAccounts(readSavedAccounts());
@@ -141,7 +145,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   };
 
-  const signup = async (email: string, password: string, firstName: string, lastName: string) => {
+  const signup = async (email: string, password: string, firstName: string, lastName: string, category: string = 'anime') => {
     try {
       const { error: signupError } = await supabase.auth.signUp({
         email,
@@ -150,8 +154,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           data: {
             firstName,
             lastName,
-            preferredTopic: 'anime',
-            isNewUser: true,
+            preferredTopic: category,
+            isNewUser: false,
           },
         },
       });
@@ -220,13 +224,41 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       await supabase.auth.signOut();
       setUser(null);
       setIsAuthenticated(false);
+      setIsAdmin(false);
     } catch (error) {
       console.error('Error logging out:', error);
     }
   };
 
+  // Check if user is admin based on role in database
+  const checkAdminRole = useCallback(async (userId: string) => {
+    try {
+      const role = await getUserRole(userId);
+      setIsAdmin(role === 'admin');
+    } catch (error) {
+      console.error('Error checking admin role:', error);
+      setIsAdmin(false);
+    }
+  }, []);
+
+  // Refresh admin role (call after upgrading)
+  const refreshAdminRole = useCallback(async () => {
+    if (user?.id) {
+      await checkAdminRole(user.id);
+    }
+  }, [user?.id, checkAdminRole]);
+
+  // Check admin role when user changes
+  useEffect(() => {
+    if (user?.id) {
+      checkAdminRole(user.id);
+    } else {
+      setIsAdmin(false);
+    }
+  }, [user?.id, checkAdminRole]);
+
   return (
-    <AuthContext.Provider value={{ isAuthenticated, user, loading, savedAccounts, login, signup, switchAccount, updateAccountProfile, logout }}>
+    <AuthContext.Provider value={{ isAuthenticated, user, loading, savedAccounts, login, signup, switchAccount, updateAccountProfile, logout, isAdmin, refreshAdminRole }}>
       {children}
     </AuthContext.Provider>
   );

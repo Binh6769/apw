@@ -1,0 +1,69 @@
+<!DOCTYPE html>
+<html>
+<head>
+<style>
+html { background: #0F172A; }
+body {
+  width: 720pt; height: 405pt; margin: 0; padding: 0;
+  background: #0F172A; font-family: Arial, sans-serif;
+  display: flex; flex-direction: column; overflow: hidden;
+}
+.top-bar { background: #E11D48; height: 4pt; width: 100%; }
+.content { padding: 24pt 36pt; flex: 1; }
+h2 { color: #F8FAFC; font-size: 26pt; font-weight: bold; margin: 0 0 4pt 0; }
+.underline { width: 50pt; height: 4pt; background: #FB7185; margin-bottom: 14pt; }
+p { color: #94A3B8; font-size: 13pt; margin: 0 0 12pt 0; }
+.tables-wrapper { display: flex; gap: 16pt; }
+.table-col { flex: 1; background: #1E293B; border-radius: 6pt; overflow: hidden; }
+.row { display: flex; border-bottom: 1pt solid #334155; }
+.row:last-child { border-bottom: none; }
+.row.header { background: #BE123C; }
+.row.even { background: #1A2332; }
+.cell { flex: 1; padding: 6pt 10pt; }
+.cell p { font-size: 11pt; margin: 0; color: #CBD5E1; }
+.header .cell p { color: #FFF; font-weight: bold; font-size: 12pt; }
+.stats { display: flex; gap: 10pt; margin-top: 12pt; }
+.stat { flex: 1; text-align: center; padding: 10pt; background: #1E293B; border-radius: 8pt; }
+.stat .num { font-size: 28pt; font-weight: bold; color: #FB7185; margin: 0; }
+.stat .label { color: #94A3B8; font-size: 10pt; margin: 2pt 0 0 0; }
+</style>
+</head>
+<body>
+<div class="top-bar"></div>
+<div class="content">
+  <h2>Anime by the Numbers</h2>
+  <div class="underline"></div>
+  <div class="tables-wrapper">
+    <div class="table-col">
+      <div class="row header">
+        <div class="cell"><p>Metric</p></div>
+        <div class="cell"><p>Value</p></div>
+      </div>
+      <div class="row even"><div class="cell"><p>Global Industry Revenue</p></div><div class="cell"><p>$30+ Billion</p></div></div>
+      <div class="row odd"><div class="cell"><p>Anime Series Produced</p></div><div class="cell"><p>~6,000+</p></div></div>
+      <div class="row even"><div class="cell"><p>Anime Studios in Japan</p></div><div class="cell"><p>~600</p></div></div>
+      <div class="row odd"><div class="cell"><p>Crunchyroll Subscribers</p></div><div class="cell"><p>13+ Million</p></div></div>
+      <div class="row even"><div class="cell"><p>Streaming Platforms</p></div><div class="cell"><p>Crunchyroll, Netflix, HIDIVE, Disney+</p></div></div>
+      <div class="row odd"><div class="cell"><p>Most Episodes (Ongoing)</p></div><div class="cell"><p>One Piece: 1,100+</p></div></div>
+    </div>
+    <div class="table-col">
+      <div class="row header">
+        <div class="cell"><p>Top Movies</p></div>
+        <div class="cell"><p>Box Office ($M)</p></div>
+      </div>
+      <div class="row even"><div class="cell"><p>Demon Slayer: Mugen Train</p></div><div class="cell"><p>$507M</p></div></div>
+      <div class="row odd"><div class="cell"><p>Spirited Away</p></div><div class="cell"><p>$395M</p></div></div>
+      <div class="row even"><div class="cell"><p>Your Name</p></div><div class="cell"><p>$382M</p></div></div>
+      <div class="row odd"><div class="cell"><p>Suzume</p></div><div class="cell"><p>$323M</p></div></div>
+      <div class="row even"><div class="cell"><p>Howl's Moving Castle</p></div><div class="cell"><p>$238M</p></div></div>
+      <div class="row odd"><div class="cell"><p>The Boy and the Heron</p></div><div class="cell"><p>$294M</p></div></div>
+    </div>
+  </div>
+  <div class="stats">
+    <div class="stat"><p class="num">+100M</p><p class="label">Anime fans outside Japan</p></div>
+    <div class="stat"><p class="num">60%</p><p class="label">of global anime revenue from overseas</p></div>
+    <div class="stat"><p class="num">200+</p><p class="label">Countries with anime distribution</p></div>
+  </div>
+</div>
+</body>
+</html>

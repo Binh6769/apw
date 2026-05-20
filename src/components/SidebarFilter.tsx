@@ -1,7 +1,8 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { Filter, X, Search } from 'lucide-react';
 import clsx from 'clsx';
 import { useSearchParams } from 'react-router-dom';
+import { fetchAllCategories, type Category } from '../services/categoriesService';
 
 interface SidebarFilterProps {
   isOpen: boolean;
@@ -13,6 +14,18 @@ export function SidebarFilter({ isOpen, onToggle, availableTags }: SidebarFilter
   const [searchParams, setSearchParams] = useSearchParams();
   const currentQuery = searchParams.get('q') || '';
   const [searchTerm, setSearchTerm] = useState('');
+  const [dbCategories, setDbCategories] = useState<Category[]>([]);
+
+  useEffect(() => {
+    fetchAllCategories().then(setDbCategories);
+  }, []);
+
+  // Merge global categories with dynamic tags from loaded pins
+  const allTags = useMemo(() => {
+    const tagSet = new Set(availableTags);
+    dbCategories.forEach(c => tagSet.add(c.name));
+    return Array.from(tagSet);
+  }, [availableTags, dbCategories]);
 
   // Extract separated tags from current URL query
   const queryTags = useMemo(() => {
@@ -38,9 +51,9 @@ export function SidebarFilter({ isOpen, onToggle, availableTags }: SidebarFilter
   };
 
   const filteredTags = useMemo(() => {
-    if (!searchTerm) return availableTags;
-    return availableTags.filter(tag => tag.toLowerCase().includes(searchTerm.toLowerCase()));
-  }, [availableTags, searchTerm]);
+    if (!searchTerm) return allTags;
+    return allTags.filter(tag => tag.toLowerCase().includes(searchTerm.toLowerCase()));
+  }, [allTags, searchTerm]);
 
   return (
     <>

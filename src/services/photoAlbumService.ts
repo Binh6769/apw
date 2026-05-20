@@ -149,14 +149,30 @@ export const addPhotoToAlbum = async (
       return false;
     }
 
-    // Update album's updated_at and cover_image_url if not set
-    await supabase
+    // Update album's updated_at and cover_image_url only if not already set
+    const { data: albumData } = await supabase
       .from('photo_albums')
-      .update({
-        updated_at: new Date().toISOString(),
-        cover_image_url: photo.urls.full || photo.urls.regular,
-      })
-      .eq('id', albumId);
+      .select('cover_image_url')
+      .eq('id', albumId)
+      .single();
+
+    if (!albumData?.cover_image_url) {
+      await supabase
+        .from('photo_albums')
+        .update({
+          updated_at: new Date().toISOString(),
+          cover_image_url: photo.urls.full || photo.urls.regular,
+        })
+        .eq('id', albumId);
+    } else {
+      // Just update timestamp
+      await supabase
+        .from('photo_albums')
+        .update({
+          updated_at: new Date().toISOString(),
+        })
+        .eq('id', albumId);
+    }
 
     return true;
   } catch (error) {
@@ -172,6 +188,13 @@ export const removePhotoFromAlbum = async (
   albumPhotoId: string
 ): Promise<boolean> => {
   try {
+    // Get album_id before deleting
+    const { data: row } = await supabase
+      .from('album_photos')
+      .select('album_id')
+      .eq('id', albumPhotoId)
+      .maybeSingle();
+
     const { error } = await supabase
       .from('album_photos')
       .delete()
@@ -180,6 +203,21 @@ export const removePhotoFromAlbum = async (
     if (error) {
       console.error('Error removing photo from album:', error);
       return false;
+    }
+
+    // If album had a cover, check if it should be cleared
+    if (row?.album_id) {
+      const { count } = await supabase
+        .from('album_photos')
+        .select('*', { count: 'exact', head: true })
+        .eq('album_id', row.album_id);
+
+      if (count === 0) {
+        await supabase
+          .from('photo_albums')
+          .update({ cover_image_url: null, updated_at: new Date().toISOString() })
+          .eq('id', row.album_id);
+      }
     }
 
     return true;
@@ -330,22 +368,49 @@ export const addPhotosToAlbum = async (
       photo_color: photo.color,
     }));
 
-    const { error } = await supabase
+const { error } = await supabase
       .from('album_photos')
       .upsert(rows, { onConflict: 'album_id,photo_id' });
 
     if (error) {
-      console.error('Error bulk adding photos to album:', error);
-      return false;
+      if (error.message?.includes('403') || error.message?.includes('Forbidden')) {
+        console.warn('album_photos table write forbidden, trying insert');
+        // Try insert as fallback — skip duplicates row by row
+        for (const row of rows) {
+          const { error: insertError } = await supabase
+            .from('album_photos')
+            .upsert(row, { onConflict: 'album_id,photo_id', ignoreDuplicates: true });
+          
+          if (insertError) {
+            console.error('Error adding photo to album:', insertError);
+          }
+        }
+      } else {
+        console.error('Error bulk adding photos to album:', error);
+        return false;
+      }
     }
 
-    await supabase
+    const { data: albumData } = await supabase
       .from('photo_albums')
-      .update({
-        updated_at: new Date().toISOString(),
-        cover_image_url: rows[0]?.photo_url,
-      })
-      .eq('id', albumId);
+      .select('cover_image_url')
+      .eq('id', albumId)
+      .single();
+
+    if (!albumData?.cover_image_url) {
+      await supabase
+        .from('photo_albums')
+        .update({
+          updated_at: new Date().toISOString(),
+          cover_image_url: rows[0]?.photo_url,
+        })
+        .eq('id', albumId);
+    } else {
+      await supabase
+        .from('photo_albums')
+        .update({ updated_at: new Date().toISOString() })
+        .eq('id', albumId);
+    }
 
     return true;
   } catch (error) {

@@ -215,8 +215,8 @@ export function Header() {
           </button>
           {isCreateOpen && (
             <div className="absolute top-full left-0 mt-2 w-48 bg-anime-surface-muted border border-anime-border rounded-xl shadow-[0_0_20px_rgba(0,0,0,0.5)] overflow-hidden py-2 z-50 animate-in fade-in zoom-in-95 duration-100">
-              <div onClick={() => { navigate('/create-pin'); setIsCreateOpen(false); }} className="px-4 py-2 hover:bg-anime-surface cursor-pointer text-sm font-semibold text-anime-text transition-colors">Create Idea Pin</div>
-              <div onClick={() => { navigate('/create-pin'); setIsCreateOpen(false); }} className="px-4 py-2 hover:bg-anime-surface cursor-pointer text-sm font-semibold text-anime-text transition-colors">Create Pin</div>
+              <div onClick={() => { navigate('/create-pin'); setIsCreateOpen(false); }} className="px-4 py-2 hover:bg-anime-surface cursor-pointer text-sm font-semibold text-anime-text transition-colors">Upload New Pin</div>
+              <div onClick={() => { navigate('/profile?tab=created'); setIsCreateOpen(false); }} className="px-4 py-2 hover:bg-anime-surface cursor-pointer text-sm font-semibold text-anime-text transition-colors">My Posted Pins</div>
             </div>
           )}
         </div>
@@ -362,6 +362,7 @@ export function Header() {
 
                   <div className="border-t border-anime-border my-1"></div>
                   <div className="px-4 py-1 text-xs text-anime-muted font-semibold mt-1">More options</div>
+                  <div onClick={() => { navigate('/categories'); setIsMenuOpen(false); }} className="px-4 py-2 hover:bg-anime-surface text-anime-text cursor-pointer text-sm font-semibold transition-colors">Manage Categories</div>
                   <div onClick={() => { navigate('/settings'); setIsMenuOpen(false); }} className="px-4 py-2 hover:bg-anime-surface text-anime-text cursor-pointer text-sm font-semibold transition-colors">Settings</div>
                   <div onClick={() => { navigate('/settings'); setIsMenuOpen(false); }} className="px-4 py-2 hover:bg-anime-surface text-anime-text cursor-pointer text-sm font-semibold transition-colors">Tune your home feed</div>
                   <div className="px-4 py-2 hover:bg-anime-surface text-anime-text cursor-pointer text-sm font-semibold transition-colors">Install the Windows app</div>

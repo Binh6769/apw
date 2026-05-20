@@ -1,22 +1,23 @@
 import { useState, memo, useRef, useEffect, useMemo } from 'react';
 import type { Photo } from '../types';
-import { MoreHorizontal, Trash2, Plus, Copy } from 'lucide-react';
+import { MoreHorizontal, Trash2, Plus, Copy, CheckCircle, Pencil } from 'lucide-react';
 import { useSavedPins } from '../hooks/useSavedPins';
 import { useToast } from '../hooks/useToast';
 import { useUiSettings } from '../hooks/useUiSettings';
 import { usePhotoAlbums } from '../hooks/usePhotoAlbums';
 import clsx from 'clsx';
 import { useNavigate } from 'react-router-dom';
-import { isHistoryAlbumName } from '../services/systemAlbums';
+import { isHistoryAlbumName, isSavedAlbumName, isLovedAlbumName } from '../services/systemAlbums';
 
 interface PinCardProps {
   photo: Photo;
   onClick: () => void;
   onImageLoad?: (id: string) => void;
   onDelete?: (photo: Photo) => void;
+  onEdit?: (photo: Photo) => void;
 }
 
-export const PinCard = memo(function PinCard({ photo, onClick, onImageLoad, onDelete }: PinCardProps) {
+export const PinCard = memo(function PinCard({ photo, onClick, onImageLoad, onDelete, onEdit }: PinCardProps) {
   const [isLoaded, setIsLoaded] = useState(false);
   const [isVisible, setIsVisible] = useState(false);
   const [isMenuOpen, setIsMenuOpen] = useState(false);
@@ -29,7 +30,7 @@ export const PinCard = memo(function PinCard({ photo, onClick, onImageLoad, onDe
   const { albums, addPhotoToAlbum } = usePhotoAlbums();
   const navigate = useNavigate();
   const selectableAlbums = useMemo(
-    () => albums.filter((album) => !isHistoryAlbumName(album.name)),
+    () => albums.filter((album) => !isHistoryAlbumName(album.name) && !isSavedAlbumName(album.name) && !isLovedAlbumName(album.name)),
     [albums]
   );
 
@@ -108,6 +109,11 @@ export const PinCard = memo(function PinCard({ photo, onClick, onImageLoad, onDe
     onDelete?.(photo);
   };
 
+  const handleEdit = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    onEdit?.(photo);
+  };
+
   const handleShare = (e: React.MouseEvent) => {
     e.stopPropagation();
     navigator.clipboard.writeText(window.location.href);
@@ -117,9 +123,14 @@ export const PinCard = memo(function PinCard({ photo, onClick, onImageLoad, onDe
   const handleAddToAlbum = async (albumId: string, e: React.MouseEvent) => {
     e.stopPropagation();
     try {
-      await addPhotoToAlbum(albumId, photo);
-      showToast('Added to album', 'success');
-      setIsMenuOpen(false);
+      const success = await addPhotoToAlbum(albumId, photo);
+      if (success) {
+        showToast('Added to album', 'success');
+        setIsMenuOpen(false);
+        setIsAlbumMenuOpen(false);
+      } else {
+        showToast('Failed to add to album', 'error');
+      }
     } catch (error) {
       console.error('Error adding photo to album:', error);
       showToast('Failed to add to album', 'error');
@@ -154,7 +165,7 @@ export const PinCard = memo(function PinCard({ photo, onClick, onImageLoad, onDe
       >
         {isVisible && (
           <img
-            src={photo.urls.regular}
+            src={photo.urls.small || photo.urls.regular}
             alt={photo.alt_description || 'Pin'}
             className={clsx(
               "absolute top-0 left-0 w-full h-full object-cover transition-opacity duration-300",
@@ -165,6 +176,7 @@ export const PinCard = memo(function PinCard({ photo, onClick, onImageLoad, onDe
               onImageLoad?.(photo.id);
             }}
             loading="lazy"
+            decoding="async"
           />
         )}
 
@@ -175,6 +187,19 @@ export const PinCard = memo(function PinCard({ photo, onClick, onImageLoad, onDe
             overlayVisibilityClass
           )}
         />
+
+        {/* Category Tag - Show on hover */}
+        {(photo.category || photo.tags?.[0]) && (
+          <div
+            className={clsx(
+              "absolute bottom-3 left-3 px-2 py-1 bg-black/60 backdrop-blur-sm rounded-md text-xs text-white transition-opacity duration-200 pointer-events-none",
+              overlayVisibilityClass
+            )}
+          >
+            {(photo.tags?.[0] || photo.category)?.split(',')[0].trim()}
+          </div>
+        )}
+
         {/* Hover Actions */}
         <div
           className={clsx(
@@ -200,9 +225,18 @@ export const PinCard = memo(function PinCard({ photo, onClick, onImageLoad, onDe
           {/* Actions */}
           <div className="flex items-center gap-2 shrink-0">
             <div className="flex items-center gap-2">
-              {onDelete && (
+              {onEdit && (
                 <button
                   className="bg-anime-surface-muted/90 backdrop-blur p-2 rounded-full hover:bg-anime-primary hover:text-white transition-colors text-gray-200"
+                  onClick={handleEdit}
+                  title="Edit"
+                >
+                  <Pencil size={16} />
+                </button>
+              )}
+              {onDelete && (
+                <button
+                  className="bg-anime-surface-muted/90 backdrop-blur p-2 rounded-full hover:bg-red-600 hover:text-white transition-colors text-gray-200"
                   onClick={handleDelete}
                   title="Delete"
                 >
@@ -291,7 +325,13 @@ export const PinCard = memo(function PinCard({ photo, onClick, onImageLoad, onDe
         )}
         <div className="flex items-center justify-between mt-0.5">
           {photo.user?.name && (
-            <p className="text-xs text-anime-muted truncate max-w-[60%]">{photo.user.name}</p>
+            <div className="flex items-center gap-1.5">
+              <p className="text-xs text-anime-muted truncate max-w-[60%]">{photo.user.name}</p>
+              <span className="flex items-center gap-0.5 text-[10px] text-green-400 bg-green-400/10 px-1.5 py-0.5 rounded-full">
+                <CheckCircle size={8} />
+                User
+              </span>
+            </div>
           )}
           {photo.tags && photo.tags.length > 0 && (
             <div className="flex gap-1.5 flex-wrap justify-end flex-1 ml-2">

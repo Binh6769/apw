@@ -3,7 +3,7 @@ import { createContext, useState, useEffect, useCallback } from 'react';
 import type { ReactNode } from 'react';
 import type { Photo } from '../types';
 import { ensurePinExists, fetchSavedPins, fetchUserPins, savePin as savePinService, unsavePin as unsavePinService } from '../services/pinsService';
-import { addPhotoToAlbum, addPhotosToAlbum, ensureAlbumForUser, removePhotoFromAlbumByPhotoId } from '../services/photoAlbumService';
+import { addPhotoToAlbum, ensureAlbumForUser, removePhotoFromAlbumByPhotoId } from '../services/photoAlbumService';
 import { useAuth } from './AuthContext';
 
 interface SavedPinsContextType {
@@ -81,11 +81,6 @@ export function SavedPinsProvider({ children }: { children: ReactNode }) {
         
         setSavedPins(filteredSavedPins);
         setSavedIds(new Set(filteredSavedPins.map(p => p.id)));
-
-        // Keep system Saved album in sync with saved pins
-        if (album?.id && filteredSavedPins.length > 0) {
-          await addPhotosToAlbum(album.id, filteredSavedPins);
-        }
       } catch (error) {
         console.error('Failed to load saved pins', error);
         setSavedPins([]);
@@ -176,6 +171,10 @@ export function SavedPinsProvider({ children }: { children: ReactNode }) {
     }
 
     const pinId = savedPin.id;
+    const revertRemoval = () => {
+      setSavedPins(prev => [savedPin, ...prev]);
+      setSavedIds(prev => new Set(prev).add(pinId));
+    };
     console.log('Removing pin from saved:', pinId);
     
     // Remove from local state
@@ -197,10 +196,11 @@ export function SavedPinsProvider({ children }: { children: ReactNode }) {
         }
       } else {
         console.error('Failed to remove from Supabase');
+        revertRemoval();
       }
     } catch (error) {
       console.error('Failed to unsave pin', error);
-      // Optionally reload pins on error
+      revertRemoval();
     }
   };
 

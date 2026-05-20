@@ -2,7 +2,7 @@ import { useLocation, useNavigate, useParams } from 'react-router-dom';
 import { useInfiniteQuery, useQuery } from '@tanstack/react-query';
 import { fetchPhotoById, fetchRelatedPhotos } from '../api/unsplash';
 import { fetchPinById } from '../services/pinsService';
-import { ArrowLeft, MoreHorizontal, Share, Download, Heart, Trash2, ThumbsUp } from 'lucide-react';
+import { ArrowLeft, MoreHorizontal, Share, Download, Heart, Trash2, ThumbsUp, Pencil } from 'lucide-react';
 import { useSavedPins } from '../hooks/useSavedPins';
 import { useToast } from '../hooks/useToast';
 import { useComments } from '../hooks/useComments';
@@ -16,6 +16,7 @@ import { deletePin } from '../services/pinsService';
 import type { Photo } from '../types';
 import { usePhotoAlbums } from '../hooks/usePhotoAlbums';
 import { addPhotoToAlbum, removePhotoFromAlbum, ensureAlbumForUser, removePhotoFromAlbumByPhotoId } from '../services/photoAlbumService';
+import { isSavedAlbumName, isLovedAlbumName } from '../services/systemAlbums';
 import { fetchReactions, toggleReaction } from '../services/reactionsService';
 
 interface PinDetailWrapperProps {
@@ -61,7 +62,7 @@ export function PinDetail() {
   const { showToast } = useToast();
   const { user } = useAuth();
   const { recordView } = useImageHistory();
-  const { albums, createNewAlbum, loadAlbums } = usePhotoAlbums();
+  const { albums, createNewAlbum, loadAlbums, addPhotoToAlbum: addPhotoToAlbumContext } = usePhotoAlbums();
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [isAlbumModalOpen, setIsAlbumModalOpen] = useState(false);
   const [showCreateAlbum, setShowCreateAlbum] = useState(false);
@@ -134,13 +135,18 @@ export function PinDetail() {
   } = useInfiniteQuery({
     queryKey: ['related', id],
     queryFn: ({ pageParam = 1 }) =>
-      photo ? fetchRelatedPhotos(id || '', photo, pageParam, 24, seenRelatedIds.current) : Promise.resolve({ items: [], hasMore: false }),
+      photo ? fetchRelatedPhotos(id || '') : Promise.resolve({ items: [], hasMore: false }),
     getNextPageParam: (lastPage, pages) => (lastPage.hasMore ? pages.length + 1 : undefined),
     initialPageParam: 1,
     enabled: !!id && !!photo,
     staleTime: 5 * 60 * 1000,
     gcTime: 10 * 60 * 1000,
   });
+
+  const userAlbums = useMemo(
+    () => albums.filter((a) => !isSavedAlbumName(a.name) && !isLovedAlbumName(a.name)),
+    [albums]
+  );
 
   const relatedPhotos = useMemo(() => {
     const combined = relatedPages?.pages.flatMap((page) => page.items) || [];
@@ -291,7 +297,7 @@ export function PinDetail() {
   const handleAddToAlbum = async (albumId: string) => {
     if (!photo) return;
     try {
-      const success = await addPhotoToAlbum(albumId, photo);
+      const success = await addPhotoToAlbumContext(albumId, photo);
       if (success) {
         showToast('Added to album', 'success');
         setIsAlbumModalOpen(false);
@@ -318,11 +324,11 @@ export function PinDetail() {
         showToast('Failed to create album', 'error');
         return;
       }
-      const success = await addPhotoToAlbum(album.id, photo);
+      const success = await addPhotoToAlbumContext(album.id, photo);
+      setNewAlbumName('');
+      setShowCreateAlbum(false);
       if (success) {
         showToast('Album created and photo added', 'success');
-        setNewAlbumName('');
-        setShowCreateAlbum(false);
         setIsAlbumModalOpen(false);
       } else {
         showToast('Album created, but failed to add photo', 'error');
@@ -454,14 +460,25 @@ export function PinDetail() {
                       <div onClick={handleRemoveFromAlbum} className="px-4 py-2 hover:bg-anime-surface cursor-pointer text-sm font-semibold text-anime-cta transition-colors">Remove from album</div>
                     )}
                     {isUserPin && (
-                      <button
-                        onClick={handleDelete}
-                        disabled={isDeleting}
-                        className="w-full text-left px-4 py-2 hover:bg-red-900/30 cursor-pointer text-sm font-semibold text-anime-cta flex items-center gap-2 transition-colors disabled:opacity-50"
-                      >
-                        <Trash2 size={16} />
-                        Delete Pin
-                      </button>
+                      <>
+                        <button
+                          onClick={() => {
+                            navigate(`/edit-pin/${id}`);
+                          }}
+                          className="w-full text-left px-4 py-2 hover:bg-anime-surface cursor-pointer text-sm font-semibold text-gray-200 flex items-center gap-2 transition-colors"
+                        >
+                          <Pencil size={16} />
+                          Edit Pin
+                        </button>
+                        <button
+                          onClick={handleDelete}
+                          disabled={isDeleting}
+                          className="w-full text-left px-4 py-2 hover:bg-red-900/30 cursor-pointer text-sm font-semibold text-anime-cta flex items-center gap-2 transition-colors disabled:opacity-50"
+                        >
+                          <Trash2 size={16} />
+                          Delete Pin
+                        </button>
+                      </>
                     )}
                   </div>
                 )}
@@ -544,11 +561,40 @@ export function PinDetail() {
                   </div>
                 )}
               </div>
-              <h1 className="text-2xl md:text-3xl font-bold mb-4 text-anime-text">{photo.alt_description || 'Untitled Pin'}</h1>
+              
+              {/* Title - Separate Section */}
+              <h1 className="text-2xl md:text-3xl font-bold mb-4 text-anime-text">
+                {photo.title || photo.alt_description || 'Untitled Pin'}
+              </h1>
 
-              <p className="text-anime-muted mb-6 text-sm leading-relaxed">
-                {photo.alt_description}
-              </p>
+              {/* Description - Separate Section */}
+              {photo.description && (
+                <p className="text-anime-muted mb-6 text-sm leading-relaxed">
+                  {photo.description}
+                </p>
+              )}
+
+              {/* Category/Tags - Separate Section */}
+              {(photo.category || photo.tags) && (
+                <div className="mb-6">
+                  <div className="flex flex-wrap gap-2">
+                    {photo.tags ? (
+                      photo.tags.map((tag: string, index: number) => (
+                        <span 
+                          key={index} 
+                          className="px-3 py-1.5 bg-anime-surface hover:bg-anime-primary/20 border border-anime-border hover:border-anime-primary rounded-full text-sm text-anime-text cursor-pointer transition-colors"
+                        >
+                          #{tag}
+                        </span>
+                      ))
+                    ) : photo.category && (
+                      <span className="px-3 py-1.5 bg-anime-surface border border-anime-border rounded-full text-sm text-anime-text">
+                        #{photo.category}
+                      </span>
+                    )}
+                  </div>
+                </div>
+              )}
 
               <div className="flex items-center gap-3 mb-8">
                 <img
@@ -702,12 +748,12 @@ export function PinDetail() {
             )}
 
             <div className="max-h-80 overflow-y-auto px-2 py-2">
-              {albums.length === 0 ? (
+              {userAlbums.length === 0 ? (
                 <div className="px-4 py-6 text-sm text-gray-400 text-center">
                   No albums yet. Create one to get started.
                 </div>
               ) : (
-                albums.map((album) => (
+                userAlbums.map((album) => (
                   <div
                     key={album.id}
                     className="flex items-center justify-between px-3 py-2 rounded-lg hover:bg-anime-surface-muted group transition-colors"

@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<html>
+<head>
+<style>
+html { background: #0F172A; }
+body {
+  width: 720pt; height: 405pt; margin: 0; padding: 0;
+  background: #0F172A; font-family: Arial, sans-serif;
+  display: flex; flex-direction: column; overflow: hidden;
+}
+.top-bar { background: #E11D48; height: 4pt; width: 100%; }
+.main {
+  flex: 1; display: flex; flex-direction: column;
+  justify-content: center; align-items: center; padding: 40pt;
+}
+h1 { color: #F8FAFC; font-size: 40pt; font-weight: bold; margin: 0 0 12pt 0; text-align: center; }
+.highlight { color: #FB7185; }
+.summary { text-align: center; margin-bottom: 24pt; }
+.summary p { color: #94A3B8; font-size: 14pt; margin: 4pt 0; line-height: 1.6; }
+.summary .s-hl { color: #F8FAFC; font-weight: bold; }
+.nav { display: flex; gap: 8pt; margin-top: 8pt; flex-wrap: wrap; justify-content: center; }
+.nav-item { background: #1E293B; font-size: 10pt; padding: 6pt 14pt; border-radius: 20pt; display: inline-block; }
+.nav-item p { color: #94A3B8; margin: 0; }
+.nav-item.active { background: #E11D48; }
+.nav-item.active p { color: #FFF; }
+.thankyou { margin-top: 28pt; color: #64748B; font-size: 12pt; text-align: center; letter-spacing: 1pt; }
+.bottom-bar { background: #E11D48; height: 4pt; width: 100%; }
+</style>
+</head>
+<body>
+<div class="top-bar"></div>
+<div class="main">
+  <h1>Thank <span class="highlight">You</span></h1>
+  <div class="summary">
+    <p>From <span class="s-hl">hand-drawn classics</span> to <span class="s-hl">digital masterpieces</span>,</p>
+    <p>anime continues to inspire, entertain, and connect</p>
+    <p>people across every border and generation.</p>
+  </div>
+  <div class="nav">
+    <div class="nav-item"><p>What is Anime</p></div>
+    <div class="nav-item"><p>History</p></div>
+    <div class="nav-item active"><p>Genres</p></div>
+    <div class="nav-item"><p>Art Evolution</p></div>
+    <div class="nav-item"><p>Studios</p></div>
+    <div class="nav-item"><p>Statistics</p></div>
+    <div class="nav-item"><p>Culture</p></div>
+  </div>
+  <p class="thankyou">Keep watching, keep dreaming</p>
+</div>
+<div class="bottom-bar"></div>
+</body>
+</html>

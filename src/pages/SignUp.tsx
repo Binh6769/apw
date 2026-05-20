@@ -6,6 +6,16 @@ import { Eye, EyeOff, AlertCircle } from 'lucide-react';
 export function SignUp() {
   const { signup } = useAuth();
   const navigate = useNavigate();
+  const TOPIC_OPTIONS = [
+    { id: 'anime', label: 'Anime' },
+    { id: 'shonen', label: 'Shonen' },
+    { id: 'romance', label: 'Romance' },
+    { id: 'fantasy', label: 'Fantasy' },
+    { id: 'slice of life', label: 'Slice of Life' },
+    { id: 'mecha', label: 'Mecha' },
+    { id: 'cyberpunk', label: 'Cyberpunk' },
+  ];
+
   const [formData, setFormData] = useState({
     firstName: '',
     lastName: '',
@@ -13,6 +23,7 @@ export function SignUp() {
     password: '',
     confirmPassword: '',
     age: '',
+    category: 'anime',
   });
   const [isLoading, setIsLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
@@ -46,8 +57,10 @@ export function SignUp() {
       newErrors.age = 'Age is required';
     } else {
       const age = parseInt(formData.age, 10);
-      if (isNaN(age) || age < 18 || age > 150) {
-        newErrors.age = 'You must be at least 18 years old';
+      if (isNaN(age)) {
+        newErrors.age = 'Please enter a valid age';
+      } else if (age < 13 || age > 150) {
+        newErrors.age = 'You must be at least 13 years old';
       }
     }
     if (!agreed) {
@@ -58,13 +71,12 @@ export function SignUp() {
     return Object.keys(newErrors).length === 0;
   };
 
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
     const { name, value } = e.target;
     setFormData(prev => ({
       ...prev,
       [name]: value
     }));
-    // Clear error for this field
     if (errors[name]) {
       setErrors(prev => ({
         ...prev,
@@ -76,25 +88,27 @@ export function SignUp() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
+    if (isLoading) return;
+
     if (!validateForm()) {
       return;
     }
 
     setIsLoading(true);
+    setErrors(prev => ({ ...prev, submit: '' }));
 
-    // Sign up with Supabase
-    const { error } = await signup(
+    const result = await signup(
       formData.email,
       formData.password,
       formData.firstName,
-      formData.lastName
+      formData.lastName,
+      formData.category
     );
 
-    if (error) {
-      setErrors({ submit: error });
+    if (result.error) {
+      setErrors({ submit: result.error });
       setIsLoading(false);
     } else {
-      // Redirect to home page
       navigate('/');
     }
   };
@@ -214,6 +228,25 @@ export function SignUp() {
                 {errors.age}
               </div>
             )}
+          </div>
+
+          {/* Category Selection */}
+          <div className="text-left">
+            <label htmlFor="category" className="ml-2 text-sm font-medium text-[var(--ui-accent-strong)]">Favorite Category</label>
+            <select
+              id="category"
+              name="category"
+              value={formData.category}
+              onChange={handleChange}
+              className="w-full bg-anime-bg text-anime-text border border-anime-border rounded-2xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-anime-primary transition-shadow"
+              disabled={isLoading}
+            >
+              {TOPIC_OPTIONS.map((topic) => (
+                <option key={topic.id} value={topic.id}>
+                  {topic.label}
+                </option>
+              ))}
+            </select>
           </div>
 
           {/* Password */}

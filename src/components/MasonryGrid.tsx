@@ -10,9 +10,10 @@ interface MasonryGridProps {
   photos: Photo[];
   onPinClick: (photo: Photo) => void;
   onPinDelete?: (photo: Photo) => void;
+  onPinEdit?: (photo: Photo) => void;
 }
 
-function MasonryGridComponent({ photos, onPinClick, onPinDelete }: MasonryGridProps) {
+function MasonryGridComponent({ photos, onPinClick, onPinDelete, onPinEdit }: MasonryGridProps) {
   const { settings } = useUiSettings();
   const columnCount = useMediaColumns(settings.gridColumns);
   const [loadedIds, setLoadedIds] = useState<Set<string>>(new Set());
@@ -94,6 +95,13 @@ function MasonryGridComponent({ photos, onPinClick, onPinDelete }: MasonryGridPr
     [onPinDelete]
   );
 
+  const memoizedOnPinEdit = useCallback(
+    (photo: Photo) => {
+      if (onPinEdit) onPinEdit(photo);
+    },
+    [onPinEdit]
+  );
+
   return (
     <div className={clsx("flex justify-center px-2 md:px-4 w-full max-w-[2000px] mx-auto", densityGap, densityPadding)}>
       {columns.map((col, colIndex) => (
@@ -107,6 +115,7 @@ function MasonryGridComponent({ photos, onPinClick, onPinDelete }: MasonryGridPr
               photo={photo} 
               onClick={() => memoizedOnPinClick(photo)}
               onDelete={memoizedOnPinDelete}
+              onEdit={memoizedOnPinEdit}
               onImageLoad={handleImageLoad}
             />
           ))}
@@ -118,10 +127,10 @@ function MasonryGridComponent({ photos, onPinClick, onPinDelete }: MasonryGridPr
 
 // Memoize the entire component to prevent unnecessary re-renders from parent
 export const MasonryGrid = memo(MasonryGridComponent, (prevProps, nextProps) => {
-  // Custom comparison: only re-render if photos array changed or callbacks changed
   return (
     prevProps.photos === nextProps.photos &&
     prevProps.onPinClick === nextProps.onPinClick &&
-    prevProps.onPinDelete === nextProps.onPinDelete
+    prevProps.onPinDelete === nextProps.onPinDelete &&
+    prevProps.onPinEdit === nextProps.onPinEdit
   );
 });

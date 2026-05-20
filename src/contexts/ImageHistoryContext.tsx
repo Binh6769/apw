@@ -13,7 +13,7 @@ import {
   getRecentlyViewed,
 } from '../services/imageHistoryService';
 import { useAuth } from './AuthContext';
-import { addPhotoToAlbum, ensureAlbumForUser, addPhotosToAlbum, removePhotoFromAlbumByPhotoId } from '../services/photoAlbumService';
+import { addPhotoToAlbum, ensureAlbumForUser, removePhotoFromAlbumByPhotoId } from '../services/photoAlbumService';
 import { supabase } from '../services/supabase';
 
 interface ImageHistoryContextType {
@@ -86,29 +86,6 @@ export function ImageHistoryProvider({ children }: { children: ReactNode }) {
       try {
         const records = await fetchImageHistory(user.id, limit, offset);
         setHistory(records);
-        const albumId = await resolveHistoryAlbumId();
-        if (albumId && records.length > 0) {
-          const photos = records.map((record) => ({
-            id: record.image_id,
-            urls: {
-              raw: record.image_url,
-              full: record.image_url,
-              regular: record.image_url,
-              small: record.image_url,
-              thumb: record.image_url,
-            },
-            width: record.image_width || 0,
-            height: record.image_height || 0,
-            color: record.image_color || '#e5e5e5',
-            alt_description: record.image_description || record.image_title,
-            user: {
-              name: 'History',
-              username: 'history',
-              profile_image: { small: '', medium: '', large: '' },
-            },
-          }));
-          await addPhotosToAlbum(albumId, photos);
-        }
       } catch (error) {
         console.error('Failed to load history', error);
         setHistory([]);
@@ -138,20 +115,22 @@ export function ImageHistoryProvider({ children }: { children: ReactNode }) {
   // Delete a history item
   const deleteHistoryItem = useCallback(
     async (historyId: string) => {
+      if (!user) return;
       try {
         const success = await deleteImageFromHistory(historyId);
         if (success) {
-          let removed: ImageHistoryRecord | undefined;
+          let removedImageId: string | null = null;
           setHistory((prev) => {
-            removed = prev.find((item) => item.id === historyId);
+            const item = prev.find((item) => item.id === historyId);
+            removedImageId = item?.image_id ?? null;
             return prev.filter((item) => item.id !== historyId);
           });
           setRecentlyViewed((prev) => prev.filter((item) => item.id !== historyId));
-          const newCount = await getImageHistoryCount(user!.id);
+          const newCount = await getImageHistoryCount(user.id);
           setHistoryCount(newCount);
           const albumId = await resolveHistoryAlbumId();
-          if (albumId && removed?.image_id) {
-            await removePhotoFromAlbumByPhotoId(albumId, removed.image_id);
+          if (albumId && removedImageId) {
+            await removePhotoFromAlbumByPhotoId(albumId, removedImageId);
           }
         }
       } catch (error) {
@@ -163,6 +142,7 @@ export function ImageHistoryProvider({ children }: { children: ReactNode }) {
 
   // Clear all history
   const clearAll = useCallback(async () => {
+    if (!user) return;
     try {
       const success = await clearImageHistory();
       if (success) {
@@ -171,7 +151,6 @@ export function ImageHistoryProvider({ children }: { children: ReactNode }) {
         setHistoryCount(0);
         const albumId = await resolveHistoryAlbumId();
         if (albumId) {
-          // Clear album photos tied to history
           await supabase
             .from('album_photos')
             .delete()
@@ -181,7 +160,7 @@ export function ImageHistoryProvider({ children }: { children: ReactNode }) {
     } catch (error) {
       console.error('Failed to clear history', error);
     }
-  }, [resolveHistoryAlbumId]);
+  }, [user, resolveHistoryAlbumId]);
 
   // Search history
   const searchHistory = useCallback(

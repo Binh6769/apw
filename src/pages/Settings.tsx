@@ -6,16 +6,31 @@ import { usePhotoUpload } from '../hooks/usePhotoUpload';
 import { getUserProfile, upsertUserProfile } from '../services/userProfileService';
 import { useUiSettings } from '../hooks/useUiSettings';
 import type { ActionVisibility, CardRadius, ColorMode, FeedDensity, GridColumns, ThemeStyle, ImageQuality, BorderStyle } from '../contexts/UISettingsContext';
+import type { Photo } from '../types';
 import clsx from 'clsx';
-import { Upload, Trash2 } from 'lucide-react';
+import { Upload, Trash2, Search, Shield, ShieldCheck, Users, FileText, X, Check, Ban, Eye } from 'lucide-react';
+import {
+  validateAdminAccessKey,
+  upgradeToAdmin,
+  searchUsers,
+  getAllUsersWithStats,
+  getUserDetails,
+  getUserPosts,
+  banUser,
+  unbanUser,
+  deleteUserAccount,
+  deletePosts,
+  getAllPosts,
+  type UserWithAuth,
+  type BanDuration,
+} from '../services/adminService';
 
 export function Settings() {
   const { showToast } = useToast();
-  const { user } = useAuth();
+  const { user, isAdmin, refreshAdminRole } = useAuth();
   const { settings, resolvedColorMode, updateSettings, resetSettings } = useUiSettings();
   const [activeTab, setActiveTab] = useState('profile');
   const [isLoading, setIsLoading] = useState(false);
-  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const tabs = [
     { id: 'profile', label: 'Profile' },
@@ -26,6 +41,13 @@ export function Settings() {
     { id: 'privacy-data', label: 'Privacy and data' },
     { id: 'security', label: 'Security' },
   ];
+
+  if (!isAdmin) {
+    tabs.push({ id: 'upgrade-admin', label: 'Upgrade to Admin' });
+  } else {
+    tabs.push({ id: 'admin-users', label: 'User Management' });
+    tabs.push({ id: 'admin-posts', label: 'Posts Management' });
+  }
 
   const [formData, setFormData] = useState({
     firstName: '',
@@ -39,6 +61,19 @@ export function Settings() {
     avatarUrl: '',
     birthDate: ''
   });
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const [adminAccessKey, setAdminAccessKey] = useState('');
+  const [isUpgrading, setIsUpgrading] = useState(false);
+  const [adminUsers, setAdminUsers] = useState<UserWithAuth[]>([]);
+  const [userSearchQuery, setUserSearchQuery] = useState('');
+  const [selectedUser, setSelectedUser] = useState<UserWithAuth | null>(null);
+  const [selectedUserPosts, setSelectedUserPosts] = useState<Photo[]>([]);
+  const [selectedPosts, setSelectedPosts] = useState<string[]>([]);
+  const [allPosts, setAllPosts] = useState<Photo[]>([]);
+  const [adminTab, setAdminTab] = useState<'users' | 'posts'>('users');
+  const [showBanModal, setShowBanModal] = useState(false);
+  const [banDuration, setBanDuration] = useState<BanDuration>(7);
 
   const colorModes: Array<{ id: ColorMode; label: string; description: string }> = [
     { id: 'light', label: 'Light', description: 'Bright background and standard contrast.' },
@@ -293,6 +328,242 @@ export function Settings() {
 
   const handleLoadingSkeletonsChange = (show: boolean) => {
     updateSettings({ showLoadingSkeletons: show });
+  };
+
+  const handleUpgradeToAdmin = async () => {
+    if (!user) return;
+    
+    setIsUpgrading(true);
+    try {
+      if (!validateAdminAccessKey(adminAccessKey)) {
+        showToast('Invalid admin access key', 'error');
+        setIsUpgrading(false);
+        return;
+      }
+
+      const success = await upgradeToAdmin(user.id);
+      if (success) {
+        showToast('Successfully upgraded to Admin!', 'success');
+        setAdminAccessKey('');
+        await refreshAdminRole();
+      } else {
+        showToast('Failed to upgrade to admin', 'error');
+      }
+    } catch (error) {
+      console.error('Error upgrading to admin:', error);
+      showToast('Failed to upgrade to admin', 'error');
+    } finally {
+      setIsUpgrading(false);
+    }
+  };
+
+  const loadAdminUsers = async () => {
+    setIsLoading(true);
+    try {
+      const users = await getAllUsersWithStats();
+      setAdminUsers(users);
+    } catch (error) {
+      console.error('Error loading admin users:', error);
+      showToast('Failed to load users', 'error');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleUserSearch = async (query: string) => {
+    setUserSearchQuery(query);
+    if (!query.trim()) {
+      await loadAdminUsers();
+      return;
+    }
+    setIsLoading(true);
+    try {
+      const results = await searchUsers(query);
+      const usersWithStats: UserWithAuth[] = results.map(u => ({
+        user_id: u.user_id,
+        email: u.email,
+        role: u.role,
+        banned_until: u.banned_until,
+        first_name: u.first_name,
+        last_name: u.last_name,
+        avatar_url: u.avatar_url,
+        bio: null,
+        location: null,
+        created_at: '',
+        post_count: 0,
+      }));
+      setAdminUsers(usersWithStats);
+    } catch (error) {
+      console.error('Error searching users:', error);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleSelectUser = async (userData: UserWithAuth) => {
+    setIsLoading(true);
+    try {
+      const details = await getUserDetails(userData.user_id);
+      if (details) {
+        setSelectedUser(details);
+        const posts = await getUserPosts(userData.user_id);
+        setSelectedUserPosts(posts);
+      }
+    } catch (error) {
+      console.error('Error loading user details:', error);
+      showToast('Failed to load user details', 'error');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleCloseUserDetail = () => {
+    setSelectedUser(null);
+    setSelectedUserPosts([]);
+    setSelectedPosts([]);
+  };
+
+  const handleBanUser = async () => {
+    if (!selectedUser) return;
+    
+    setIsLoading(true);
+    try {
+      const success = await banUser(selectedUser.user_id, banDuration);
+      if (success) {
+        showToast('User banned successfully', 'success');
+        setShowBanModal(false);
+        await loadAdminUsers();
+        const updated = await getUserDetails(selectedUser.user_id);
+        if (updated) setSelectedUser(updated);
+      } else {
+        showToast('Failed to ban user', 'error');
+      }
+    } catch (error) {
+      console.error('Error banning user:', error);
+      showToast('Failed to ban user', 'error');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleUnbanUser = async () => {
+    if (!selectedUser) return;
+    
+    setIsLoading(true);
+    try {
+      const success = await unbanUser(selectedUser.user_id);
+      if (success) {
+        showToast('User unbanned successfully', 'success');
+        await loadAdminUsers();
+        const updated = await getUserDetails(selectedUser.user_id);
+        if (updated) setSelectedUser(updated);
+      } else {
+        showToast('Failed to unban user', 'error');
+      }
+    } catch (error) {
+      console.error('Error unbanning user:', error);
+      showToast('Failed to unban user', 'error');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleDeleteUser = async () => {
+    if (!selectedUser) return;
+    if (!confirm(`Are you sure you want to delete user ${selectedUser.email}? This action cannot be undone.`)) return;
+    
+    setIsLoading(true);
+    try {
+      const success = await deleteUserAccount(selectedUser.user_id);
+      if (success) {
+        showToast('User deleted successfully', 'success');
+        handleCloseUserDetail();
+        await loadAdminUsers();
+      } else {
+        showToast('Failed to delete user', 'error');
+      }
+    } catch (error) {
+      console.error('Error deleting user:', error);
+      showToast('Failed to delete user', 'error');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handlePostSelection = (postId: string) => {
+    setSelectedPosts(prev => 
+      prev.includes(postId) 
+        ? prev.filter(id => id !== postId)
+        : [...prev, postId]
+    );
+  };
+
+  const handleSelectAllUserPosts = () => {
+    if (selectedPosts.length === selectedUserPosts.length) {
+      setSelectedPosts([]);
+    } else {
+      setSelectedPosts(selectedUserPosts.map(p => p.id));
+    }
+  };
+
+  const handleBulkDeleteUserPosts = async () => {
+    if (selectedPosts.length === 0) return;
+    if (!confirm(`Are you sure you want to delete ${selectedPosts.length} posts? This action cannot be undone.`)) return;
+    
+    setIsLoading(true);
+    try {
+      const success = await deletePosts(selectedPosts);
+      if (success) {
+        showToast('Posts deleted successfully', 'success');
+        setSelectedPosts([]);
+        if (selectedUser) {
+          const posts = await getUserPosts(selectedUser.user_id);
+          setSelectedUserPosts(posts);
+        }
+      } else {
+        showToast('Failed to delete posts', 'error');
+      }
+    } catch (error) {
+      console.error('Error deleting posts:', error);
+      showToast('Failed to delete posts', 'error');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const loadAllPosts = async () => {
+    setIsLoading(true);
+    try {
+      const posts = await getAllPosts();
+      setAllPosts(posts);
+    } catch (error) {
+      console.error('Error loading posts:', error);
+      showToast('Failed to load posts', 'error');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleBulkDeleteAllPosts = async () => {
+    if (selectedPosts.length === 0) return;
+    if (!confirm(`Are you sure you want to delete ${selectedPosts.length} posts? This action cannot be undone.`)) return;
+    
+    setIsLoading(true);
+    try {
+      const success = await deletePosts(selectedPosts);
+      if (success) {
+        showToast('Posts deleted successfully', 'success');
+        setSelectedPosts([]);
+        await loadAllPosts();
+      } else {
+        showToast('Failed to delete posts', 'error');
+      }
+    } catch (error) {
+      console.error('Error deleting posts:', error);
+      showToast('Failed to delete posts', 'error');
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   const previewRadiusClass =
@@ -922,6 +1193,384 @@ export function Settings() {
                   </button>
                 </div>
               </div>
+            </>
+          ) : activeTab === 'upgrade-admin' && !isAdmin ? (
+            <>
+              <h1 className="text-3xl font-semibold mb-2 text-yellow-500 flex items-center gap-3">
+                <Shield size={32} /> Upgrade to Admin
+              </h1>
+              <p className="text-[var(--ui-accent-strong)] opacity-80 mb-8">Enter the admin access key to gain administrator privileges.</p>
+              
+              <div className="bg-anime-surface border border-anime-border rounded-2xl p-6 shadow-sm max-w-md">
+                <div className="space-y-4">
+                  <div>
+                    <label className="text-sm font-semibold text-[var(--ui-accent-strong)] block mb-2">Admin Access Key</label>
+                    <input
+                      type="password"
+                      value={adminAccessKey}
+                      onChange={(e) => setAdminAccessKey(e.target.value)}
+                      className="w-full bg-anime-bg text-anime-text border border-anime-border rounded-xl px-4 py-3 focus:ring-2 focus:ring-anime-primary focus:outline-none transition-colors"
+                      placeholder="Enter your admin access key"
+                    />
+                  </div>
+                  <button
+                    onClick={handleUpgradeToAdmin}
+                    disabled={isUpgrading || !adminAccessKey.trim()}
+                    className="w-full bg-yellow-500 hover:bg-yellow-600 text-black px-6 py-3 rounded-full font-bold transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                  >
+                    <ShieldCheck size={20} />
+                    {isUpgrading ? 'Upgrading...' : 'Upgrade to Admin'}
+                  </button>
+                </div>
+              </div>
+            </>
+          ) : (activeTab === 'admin-users' || activeTab === 'admin-posts') && isAdmin ? (
+            <>
+              <h1 className="text-3xl font-semibold mb-2 text-red-500 flex items-center gap-3">
+                <ShieldCheck size={32} /> Admin Dashboard
+              </h1>
+              <p className="text-[var(--ui-accent-strong)] opacity-80 mb-6">Manage users and content across the system.</p>
+              
+              <div className="flex gap-2 mb-6">
+                <button
+                  onClick={() => { setAdminTab('users'); setActiveTab('admin-users'); loadAdminUsers(); }}
+                  className={clsx(
+                    "flex items-center gap-2 px-6 py-3 rounded-full font-semibold transition-colors",
+                    adminTab === 'users' 
+                      ? "bg-red-500 text-white" 
+                      : "bg-anime-surface text-gray-400 hover:text-white"
+                  )}
+                >
+                  <Users size={20} /> Users
+                </button>
+                <button
+                  onClick={() => { setAdminTab('posts'); setActiveTab('admin-posts'); loadAllPosts(); }}
+                  className={clsx(
+                    "flex items-center gap-2 px-6 py-3 rounded-full font-semibold transition-colors",
+                    adminTab === 'posts' 
+                      ? "bg-red-500 text-white" 
+                      : "bg-anime-surface text-gray-400 hover:text-white"
+                  )}
+                >
+                  <FileText size={20} /> Posts
+                </button>
+              </div>
+
+              {adminTab === 'users' ? (
+                <div className="space-y-6">
+                  <div className="bg-anime-surface border border-anime-border rounded-2xl p-6 shadow-sm">
+                    <div className="flex justify-between items-center mb-4">
+                      <h2 className="font-semibold text-lg text-white">User Management</h2>
+                      <button 
+                        onClick={loadAdminUsers}
+                        className="px-4 py-2 bg-anime-surface-muted hover:bg-anime-surface-strong rounded-lg text-sm text-white transition-colors"
+                      >
+                        Refresh
+                      </button>
+                    </div>
+                    
+                    <div className="relative mb-4">
+                      <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" size={20} />
+                      <input
+                        type="text"
+                        value={userSearchQuery}
+                        onChange={(e) => handleUserSearch(e.target.value)}
+                        placeholder="Search by username, email, or display name..."
+                        className="w-full bg-anime-bg text-anime-text border border-anime-border rounded-xl pl-10 pr-4 py-3 focus:ring-2 focus:ring-anime-primary focus:outline-none transition-colors"
+                      />
+                    </div>
+
+                    {selectedUser ? (
+                      <div className="border border-anime-border rounded-xl p-6 mt-4 bg-anime-bg">
+                        <div className="flex justify-between items-start mb-4">
+                          <h3 className="font-semibold text-lg text-white">User Details</h3>
+                          <button onClick={handleCloseUserDetail} className="text-gray-400 hover:text-white">
+                            <X size={24} />
+                          </button>
+                        </div>
+                        
+                        <div className="grid grid-cols-2 gap-4 mb-6">
+                          <div>
+                            <p className="text-xs text-gray-400">User ID</p>
+                            <p className="font-mono text-sm text-white truncate">{selectedUser.user_id}</p>
+                          </div>
+                          <div>
+                            <p className="text-xs text-gray-400">Email</p>
+                            <p className="font-semibold text-white">{selectedUser.email}</p>
+                          </div>
+                          <div>
+                            <p className="text-xs text-gray-400">Name</p>
+                            <p className="font-semibold text-white">{selectedUser.first_name} {selectedUser.last_name}</p>
+                          </div>
+                          <div>
+                            <p className="text-xs text-gray-400">Join Date</p>
+                            <p className="text-white">{new Date(selectedUser.created_at).toLocaleDateString()}</p>
+                          </div>
+                          <div>
+                            <p className="text-xs text-gray-400">Role</p>
+                            <p className={clsx(
+                              "font-semibold",
+                              selectedUser.role === 'admin' ? 'text-yellow-500' : 
+                              selectedUser.role === 'banned' ? 'text-red-500' : 'text-green-500'
+                            )}>{selectedUser.role}</p>
+                          </div>
+                          <div>
+                            <p className="text-xs text-gray-400">Posts</p>
+                            <p className="font-semibold text-white">{selectedUser.post_count}</p>
+                          </div>
+                          {selectedUser.banned_until && (
+                            <div>
+                              <p className="text-xs text-gray-400">Banned Until</p>
+                              <p className="font-semibold text-red-500">
+                                {selectedUser.banned_until === 'permanent' ? 'Permanent' : new Date(selectedUser.banned_until).toLocaleDateString()}
+                              </p>
+                            </div>
+                          )}
+                        </div>
+
+                        <div className="border-t border-anime-border pt-4">
+                          <h4 className="font-semibold text-white mb-3">User's Posts ({selectedUserPosts.length})</h4>
+                          {selectedUserPosts.length > 0 && (
+                            <>
+                              <div className="flex items-center gap-2 mb-3">
+                                <button
+                                  onClick={handleSelectAllUserPosts}
+                                  className="text-sm text-gray-400 hover:text-white flex items-center gap-1"
+                                >
+                                  <Check size={16} />
+                                  {selectedPosts.length === selectedUserPosts.length ? 'Deselect All' : 'Select All'}
+                                </button>
+                                {selectedPosts.length > 0 && (
+                                  <button
+                                    onClick={handleBulkDeleteUserPosts}
+                                    disabled={isLoading}
+                                    className="text-sm text-red-500 hover:text-red-400 flex items-center gap-1 ml-auto"
+                                  >
+                                    <Trash2 size={16} />
+                                    Delete Selected ({selectedPosts.length})
+                                  </button>
+                                )}
+                              </div>
+                              <div className="grid grid-cols-4 gap-2 max-h-64 overflow-y-auto">
+                                {selectedUserPosts.map(post => (
+                                  <div key={post.id} className="relative group">
+                                    <img 
+                                      src={post.urls.small} 
+                                      alt={post.alt_description || undefined}
+                                      className="w-full h-24 object-cover rounded-lg"
+                                    />
+                                    <div 
+                                      className={clsx(
+                                        "absolute top-1 left-1 w-5 h-5 rounded border-2 flex items-center justify-center cursor-pointer transition-colors",
+                                        selectedPosts.includes(post.id) 
+                                          ? "bg-red-500 border-red-500" 
+                                          : "bg-black/50 border-white/50 group-hover:border-white"
+                                      )}
+                                      onClick={() => handlePostSelection(post.id)}
+                                    >
+                                      {selectedPosts.includes(post.id) && <Check size={12} className="text-white" />}
+                                    </div>
+                                  </div>
+                                ))}
+                              </div>
+                            </>
+                          )}
+                        </div>
+
+                        <div className="flex gap-2 mt-6 pt-4 border-t border-anime-border">
+                          {selectedUser.role === 'banned' ? (
+                            <button
+                              onClick={handleUnbanUser}
+                              disabled={isLoading}
+                              className="flex items-center gap-2 px-4 py-2 bg-green-500/20 text-green-500 hover:bg-green-500/30 rounded-lg transition-colors"
+                            >
+                              <Ban size={18} /> Unban User
+                            </button>
+                          ) : (
+                            <button
+                              onClick={() => setShowBanModal(true)}
+                              disabled={isLoading}
+                              className="flex items-center gap-2 px-4 py-2 bg-orange-500/20 text-orange-500 hover:bg-orange-500/30 rounded-lg transition-colors"
+                            >
+                              <Ban size={18} /> Ban User
+                            </button>
+                          )}
+                          <button
+                            onClick={handleDeleteUser}
+                            disabled={isLoading}
+                            className="flex items-center gap-2 px-4 py-2 bg-red-500/20 text-red-500 hover:bg-red-500/30 rounded-lg transition-colors ml-auto"
+                          >
+                            <Trash2 size={18} /> Delete Account
+                          </button>
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="overflow-x-auto">
+                        <table className="w-full text-left text-sm text-gray-400">
+                          <thead className="text-xs text-gray-200 uppercase bg-anime-surface-muted">
+                            <tr>
+                              <th className="px-4 py-3 rounded-tl-lg">User</th>
+                              <th className="px-4 py-3">Email</th>
+                              <th className="px-4 py-3">Role</th>
+                              <th className="px-4 py-3">Posts</th>
+                              <th className="px-4 py-3 rounded-tr-lg">Action</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {adminUsers.map((u) => (
+                              <tr key={u.user_id} className="border-b border-anime-border hover:bg-anime-surface-muted transition-colors cursor-pointer" onClick={() => handleSelectUser(u)}>
+                                <td className="px-4 py-3">
+                                  <div className="flex items-center gap-3">
+                                    <img 
+                                      src={u.avatar_url || 'https://api.dicebear.com/7.x/avataaars/svg?seed=default'} 
+                                      alt="Avatar"
+                                      className="w-8 h-8 rounded-full"
+                                    />
+                                    <span className="font-semibold text-white">
+                                      {u.first_name} {u.last_name}
+                                    </span>
+                                  </div>
+                                </td>
+                                <td className="px-4 py-3">{u.email}</td>
+                                <td className="px-4 py-3">
+                                  <span className={clsx(
+                                    "px-2 py-1 rounded-full text-xs font-semibold",
+                                    u.role === 'admin' ? 'bg-yellow-500/20 text-yellow-500' : 
+                                    u.role === 'banned' ? 'bg-red-500/20 text-red-500' : 'bg-green-500/20 text-green-500'
+                                  )}>{u.role}</span>
+                                </td>
+                                <td className="px-4 py-3">{u.post_count}</td>
+                                <td className="px-4 py-3">
+                                  <button
+                                    onClick={(e) => { e.stopPropagation(); handleSelectUser(u); }}
+                                    className="text-blue-400 hover:text-blue-300 flex items-center gap-1"
+                                  >
+                                    <Eye size={16} /> View
+                                  </button>
+                                </td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              ) : (
+                <div className="bg-anime-surface border border-anime-border rounded-2xl p-6 shadow-sm">
+                  <div className="flex justify-between items-center mb-4">
+                    <h2 className="font-semibold text-lg text-white">Posts Management</h2>
+                    <div className="flex gap-2">
+                      <button 
+                        onClick={loadAllPosts}
+                        className="px-4 py-2 bg-anime-surface-muted hover:bg-anime-surface-strong rounded-lg text-sm text-white transition-colors"
+                      >
+                        Refresh
+                      </button>
+                    </div>
+                  </div>
+
+                  {allPosts.length > 0 && (
+                    <>
+                      <div className="flex items-center gap-2 mb-4">
+                        <span className="text-sm text-gray-400">
+                          {selectedPosts.length} of {allPosts.length} selected
+                        </span>
+                        <button
+                          onClick={() => setSelectedPosts(allPosts.map(p => p.id))}
+                          className="text-sm text-blue-400 hover:text-blue-300"
+                        >
+                          Select All
+                        </button>
+                        <button
+                          onClick={() => setSelectedPosts([])}
+                          className="text-sm text-gray-400 hover:text-white"
+                        >
+                          Deselect All
+                        </button>
+                        {selectedPosts.length > 0 && (
+                          <button
+                            onClick={handleBulkDeleteAllPosts}
+                            disabled={isLoading}
+                            className="ml-auto flex items-center gap-2 px-4 py-2 bg-red-500/20 text-red-500 hover:bg-red-500/30 rounded-lg transition-colors"
+                          >
+                            <Trash2 size={18} />
+                            Delete Selected ({selectedPosts.length})
+                          </button>
+                        )}
+                      </div>
+                      <div className="grid grid-cols-6 gap-2 max-h-[500px] overflow-y-auto">
+                        {allPosts.map(post => (
+                          <div key={post.id} className="relative group">
+                            <img 
+                              src={post.urls.small} 
+                              alt={post.alt_description || undefined}
+                              className="w-full h-20 object-cover rounded-lg"
+                            />
+                            <div 
+                              className={clsx(
+                                "absolute top-1 left-1 w-5 h-5 rounded border-2 flex items-center justify-center cursor-pointer transition-colors",
+                                selectedPosts.includes(post.id) 
+                                  ? "bg-red-500 border-red-500" 
+                                  : "bg-black/50 border-white/50 group-hover:border-white"
+                              )}
+                              onClick={() => handlePostSelection(post.id)}
+                            >
+                              {selectedPosts.includes(post.id) && <Check size={12} className="text-white" />}
+                            </div>
+                            <p className="text-xs text-gray-400 mt-1 truncate">{post.user?.name}</p>
+                          </div>
+                        ))}
+                      </div>
+                    </>
+                  )}
+                </div>
+              )}
+
+              {showBanModal && (
+                <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50">
+                  <div className="bg-anime-surface border border-anime-border rounded-2xl p-6 w-full max-w-md">
+                    <h3 className="text-xl font-semibold text-white mb-4">Ban User</h3>
+                    <p className="text-gray-400 mb-4">Select the ban duration for this user.</p>
+                    <div className="space-y-2 mb-6">
+                      {[
+                        { value: 1, label: '1 Day' },
+                        { value: 7, label: '7 Days' },
+                        { value: 30, label: '30 Days' },
+                        { value: -1, label: 'Permanent' },
+                      ].map(option => (
+                        <button
+                          key={option.value}
+                          onClick={() => setBanDuration(option.value as BanDuration)}
+                          className={clsx(
+                            "w-full text-left px-4 py-3 rounded-lg border transition-colors",
+                            banDuration === option.value
+                              ? "border-orange-500 bg-orange-500/20 text-white"
+                              : "border-anime-border text-gray-400 hover:text-white"
+                          )}
+                        >
+                          {option.label}
+                        </button>
+                      ))}
+                    </div>
+                    <div className="flex gap-2">
+                      <button
+                        onClick={() => setShowBanModal(false)}
+                        className="flex-1 px-4 py-3 bg-anime-surface-muted text-gray-400 hover:text-white rounded-xl transition-colors"
+                      >
+                        Cancel
+                      </button>
+                      <button
+                        onClick={handleBanUser}
+                        disabled={isLoading}
+                        className="flex-1 px-4 py-3 bg-orange-500 hover:bg-orange-600 text-black rounded-xl font-semibold transition-colors"
+                      >
+                        {isLoading ? 'Banning...' : 'Ban User'}
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              )}
             </>
           ) : (
             <div className="py-20 text-center">

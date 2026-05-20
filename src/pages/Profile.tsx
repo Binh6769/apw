@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { useSavedPins } from '../hooks/useSavedPins';
 import { useCreatedPins } from '../hooks/useCreatedPins';
 import { useAuth } from '../contexts/AuthContext';
@@ -13,12 +14,13 @@ import { useToast } from '../hooks/useToast';
 import type { Photo } from '../types';
 
 export function Profile() {
+  const [searchParams, setSearchParams] = useSearchParams();
   const { savedPins, loading: savedLoading } = useSavedPins();
   const { createdPins, loading: createdLoading, removePin } = useCreatedPins();
   const { user } = useAuth();
   const navigate = useNavigate();
   const { showToast } = useToast();
-  const [activeTab, setActiveTab] = useState<'saved' | 'created'>('saved');
+  const [activeTab, setActiveTab] = useState<'saved' | 'created'>(searchParams.get('tab') === 'created' ? 'created' : 'saved');
   const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
   const [profileLoading, setProfileLoading] = useState(true);
   const [showAvatarSelector, setShowAvatarSelector] = useState(false);
@@ -67,6 +69,10 @@ export function Profile() {
     }
   };
 
+  const handleEdit = (photo: Photo) => {
+    navigate(`/edit-pin/${photo.id}`);
+  };
+
   return (
     <div className="min-h-screen bg-anime-bg text-anime-text pt-20">
       <Header />
@@ -104,7 +110,10 @@ export function Profile() {
 
         <div className="flex gap-8 border-b-2 border-transparent relative">
           <div
-            onClick={() => setActiveTab('created')}
+            onClick={() => {
+              setActiveTab('created');
+              setSearchParams({ tab: 'created' });
+            }}
             className={clsx(
               "pb-2 font-semibold cursor-pointer transition-colors border-b-4",
               activeTab === 'created' ? "border-anime-primary text-anime-primary" : "border-transparent text-gray-400 hover:text-anime-text"
@@ -113,7 +122,10 @@ export function Profile() {
             Created ({createdPins.length})
           </div>
           <div
-            onClick={() => setActiveTab('saved')}
+            onClick={() => {
+              setActiveTab('saved');
+              setSearchParams({ tab: 'saved' });
+            }}
             className={clsx(
               "pb-2 font-semibold cursor-pointer transition-colors border-b-4",
               activeTab === 'saved' ? "border-anime-primary text-anime-primary" : "border-transparent text-gray-400 hover:text-anime-text"
@@ -161,6 +173,7 @@ export function Profile() {
             photos={pinsToDisplay}
             onPinClick={handlePinClick}
             onPinDelete={activeTab === 'created' ? handleCreatedDelete : undefined}
+            onPinEdit={activeTab === 'created' ? handleEdit : undefined}
           />
         )}
       </div>

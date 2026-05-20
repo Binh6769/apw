@@ -30,7 +30,7 @@ interface PhotoAlbumContextType {
   loadAlbum: (albumId: string) => Promise<void>;
   createNewAlbum: (name: string, description?: string) => Promise<PhotoAlbum | null>;
   updateAlbumDetails: (albumId: string, updates: Partial<Pick<PhotoAlbum, 'name' | 'description' | 'is_public'>>) => Promise<void>;
-  deleteCurrentAlbum: (albumId: string) => Promise<void>;
+  deleteCurrentAlbum: (albumId: string) => Promise<boolean>;
   addPhotoToCurrentAlbum: (photo: Photo) => Promise<void>;
   addPhotoToAlbum: (albumId: string, photo: Photo) => Promise<boolean>;
   removePhotoFromCurrentAlbum: (albumPhotoId: string) => Promise<void>;
@@ -155,12 +155,12 @@ export function PhotoAlbumProvider({ children }: { children: ReactNode }) {
     [currentAlbum?.id]
   );
 
-  const deleteCurrentAlbum = useCallback(async (albumId: string) => {
+  const deleteCurrentAlbum = useCallback(async (albumId: string): Promise<boolean> => {
     try {
       const album = albums.find((a) => a.id === albumId);
       if (album && isSystemAlbumName(album.name)) {
         console.warn('System albums cannot be deleted');
-        return;
+        return false;
       }
 
       const success = await deleteAlbum(albumId);
@@ -171,10 +171,12 @@ export function PhotoAlbumProvider({ children }: { children: ReactNode }) {
           setCurrentAlbumPhotos([]);
         }
       }
+      return success;
     } catch (error) {
       console.error('Failed to delete album', error);
+      return false;
     }
-  }, [currentAlbum?.id]);
+  }, [albums, currentAlbum?.id]);
 
   const addPhotoToCurrentAlbum = useCallback(async (photo: Photo) => {
     if (!currentAlbum) return;
@@ -226,7 +228,15 @@ export function PhotoAlbumProvider({ children }: { children: ReactNode }) {
           await loadAlbums();
         } else {
           const results = await searchAlbums(user.id, query);
-          setAlbums(results);
+          const { savedAlbum, lovedAlbum } = await ensureSystemAlbums();
+          const merged = [
+            ...results,
+            ...(savedAlbum ? [savedAlbum] : []),
+            ...(lovedAlbum ? [lovedAlbum] : []),
+          ];
+          setAlbums(
+            Array.from(new Map(merged.map((a) => [a.id, a])).values())
+          );
         }
       } catch (error) {
         console.error('Failed to search albums', error);
@@ -234,7 +244,7 @@ export function PhotoAlbumProvider({ children }: { children: ReactNode }) {
         setLoading(false);
       }
     },
-    [user, loadAlbums]
+    [user, loadAlbums, ensureSystemAlbums]
   );
 
   const getPhotoCount = useCallback(async (albumId: string): Promise<number> => {

@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<html>
+<head>
+<style>
+html { background: #F8FAFC; }
+body {
+  width: 720pt; height: 405pt; margin: 0; padding: 0;
+  background: #F8FAFC; font-family: Arial, sans-serif;
+  display: flex; overflow: hidden;
+}
+.sidebar { width: 12pt; background: #E11D48; height: 100%; }
+.content { padding: 28pt 32pt; flex: 1; }
+h2 { color: #0F172A; font-size: 26pt; font-weight: bold; margin: 0 0 4pt 0; }
+.underline { width: 50pt; height: 4pt; background: #E11D48; margin-bottom: 12pt; }
+p { color: #475569; font-size: 13pt; margin: 0 0 10pt 0; }
+.grid { display: flex; gap: 12pt; flex-wrap: wrap; }
+.studio {
+  flex: 1 1 44%; min-width: 150pt;
+  background: #FFF; border-radius: 8pt; padding: 10pt;
+  border-left: 4pt solid #E11D48; box-shadow: 0 2pt 6pt rgba(0,0,0,0.05);
+}
+.studio h3 { color: #BE123C; font-size: 13pt; margin: 0 0 3pt 0; }
+.studio p { color: #475569; font-size: 10pt; margin: 0; line-height: 1.4; }
+.studio .works { color: #64748B; font-size: 9pt; margin-top: 4pt; font-style: italic; }
+</style>
+</head>
+<body>
+<div class="sidebar"></div>
+<div class="content">
+  <h2>Famous Anime Studios</h2>
+  <div class="underline"></div>
+  <p>These studios have shaped anime with their distinctive styles and legendary works.</p>
+  <div class="grid">
+    <div class="studio">
+      <h3>Studio Ghibli</h3>
+      <p>Hand-drawn beauty, environmental themes, and emotional depth. Founded by Hayao Miyazaki.</p>
+      <p class="works">Spirited Away, My Neighbor Totoro</p>
+    </div>
+    <div class="studio">
+      <h3>MAPPA</h3>
+      <p>Modern powerhouse. Fluid animation and dark, mature adaptations. Rapidly rising since 2010s.</p>
+      <p class="works">Jujutsu Kaisen, Chainsaw Man</p>
+    </div>
+    <div class="studio">
+      <h3>Kyoto Animation</h3>
+      <p>Pristine art, emotional depth, and exceptional character animation. Meticulous detail.</p>
+      <p class="works">Violet Evergarden, K-On!</p>
+    </div>
+    <div class="studio">
+      <h3>Ufotable</h3>
+      <p>Masters of visual effects and seamless 2D/3D combat animation.</p>
+      <p class="works">Demon Slayer, Fate/Zero</p>
+    </div>
+  </div>
+</div>
+</body>
+</html>

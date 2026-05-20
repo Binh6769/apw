@@ -9,6 +9,8 @@ import { PinDetail } from './pages/PinDetail';
 import { Profile } from './pages/Profile';
 import { Saved } from './pages/Saved';
 import { CreatePin } from './pages/CreatePin';
+import { EditPin } from './pages/EditPin';
+import { CategoryManager } from './pages/CategoryManager';
 import { Settings } from './pages/Settings';
 import AlbumDetail from './pages/AlbumDetail';
 import { TermsPage, PrivacyPage, HelpPage } from './pages/StaticPages';
@@ -76,6 +78,8 @@ function AppRoutes() {
         <Route path="/albums" element={<RequireAuth><PhotoAlbumsPage /></RequireAuth>} />
         <Route path="/album/:albumId" element={<RequireAuth><AlbumDetail /></RequireAuth>} />
         <Route path="/create-pin" element={<RequireAuth><CreatePin /></RequireAuth>} />
+        <Route path="/edit-pin/:id" element={<RequireAuth><EditPin /></RequireAuth>} />
+        <Route path="/categories" element={<RequireAuth><CategoryManager /></RequireAuth>} />
         <Route path="/settings" element={<RequireAuth><Settings /></RequireAuth>} />
         <Route path="/terms" element={<TermsPage />} />
         <Route path="/privacy" element={<PrivacyPage />} />

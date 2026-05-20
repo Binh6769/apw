@@ -14,24 +14,24 @@ export function Login() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    
+    if (isLoading) return;
+    
     setError('');
     setIsLoading(true);
 
-    // Validate inputs
     if (!email || !password) {
       setError('Please fill in all fields');
       setIsLoading(false);
       return;
     }
 
-    // Sign in with Supabase
-    const { error: authError } = await login(email, password);
+    const result = await login(email, password);
 
-    if (authError) {
-      setError(authError);
+    if (result.error) {
+      setError(result.error);
       setIsLoading(false);
     } else {
-      // Redirect to home page
       navigate('/');
     }
   };

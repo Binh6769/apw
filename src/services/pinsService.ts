@@ -1,5 +1,6 @@
 import { supabase } from './supabase';
 import type { Photo } from '../types';
+import { getCategoriesForPins, setPinCategories, ensureCategoriesExist, type Category } from './categoriesService';
 
 interface Pin {
   id: string;
@@ -44,15 +45,27 @@ const craftDescription = (pin: Pin) => {
 import { generateTagsForImage } from '../utils/aiTagger';
 
 // Convert Pin to Photo format for display
-const convertPinToPhoto = (pin: Pin, userProfile?: UserProfile): Photo => {
+const convertPinToPhoto = (pin: Pin, userProfile?: UserProfile, categories?: Category[]): Photo => {
   const userName = userProfile
     ? `${userProfile.first_name || ''} ${userProfile.last_name || ''}`.trim() || 'Anonymous'
     : 'Anonymous';
 
-  const tags = pin.category ? pin.category.split(',').map(t => t.trim()).filter(Boolean) : undefined;
+  const tags = categories
+    ? categories.map(c => c.name)
+    : pin.category
+      ? pin.category.split(',').map(t => t.trim()).filter(Boolean)
+      : undefined;
+
+  const categoryStr = categories
+    ? categories.map(c => c.name).join(', ')
+    : pin.category || '';
 
   return {
     id: pin.id,
+    title: pin.title || '',
+    description: pin.description || '',
+    category: categoryStr,
+    source_url: pin.source_url || '',
     urls: {
       raw: pin.image_url,
       full: pin.image_url,
@@ -63,7 +76,7 @@ const convertPinToPhoto = (pin: Pin, userProfile?: UserProfile): Photo => {
     width: pin.image_width,
     height: pin.image_height,
     color: pin.image_color || '#e8e8e8',
-    alt_description: craftDescription(pin),
+    alt_description: pin.title || pin.description || 'Pin image',
     user: {
       name: userName,
       username: userProfile?.user_id || 'user',
@@ -74,6 +87,7 @@ const convertPinToPhoto = (pin: Pin, userProfile?: UserProfile): Photo => {
       },
     },
     tags: tags?.length ? tags : undefined,
+    created_at: pin.created_at,
   };
 };
 
@@ -81,7 +95,9 @@ const convertPinToPhoto = (pin: Pin, userProfile?: UserProfile): Photo => {
 export const fetchPinsFromSupabase = async (
   page: number = 1,
   limit: number = 20,
-  searchQuery?: string
+  searchQuery?: string,
+  includePrivate: boolean = false,
+  userId?: string
 ): Promise<Photo[]> => {
   try {
     const start = (page - 1) * limit;
@@ -132,14 +148,105 @@ export const fetchPinsFromSupabase = async (
       (profiles || []).map(p => [p.user_id, p])
     );
 
+    const pinIds = data.map(pin => pin.id);
+    const categoriesMap = await getCategoriesForPins(pinIds);
+
     return data.map((pin: Pin) =>
       convertPinToPhoto(
         pin,
-        profileMap.get(pin.user_id) || undefined
+        profileMap.get(pin.user_id) || undefined,
+        categoriesMap.get(pin.id)
       )
     );
   } catch (error) {
     console.error('Error in fetchPinsFromSupabase:', error);
+    return [];
+  }
+};
+
+// Fetch pins by category (for "More like this" section)
+export const fetchPinsByCategory = async (
+  category: string,
+  excludePinId: string,
+  limit: number = 12
+): Promise<Photo[]> => {
+  if (!category) return [];
+  
+  try {
+    // Find matching category IDs
+    const { data: matchingCategories } = await supabase
+      .from('categories')
+      .select('id')
+      .ilike('name', `%${category}%`);
+
+    const categoryIds = (matchingCategories || []).map(c => c.id);
+    if (categoryIds.length === 0) return [];
+
+    // Find pin IDs with those categories
+    const { data: pinCategoryData } = await supabase
+      .from('pin_categories')
+      .select('pin_id')
+      .in('category_id', categoryIds);
+
+    const matchingPinIds = [...new Set((pinCategoryData || []).map(pc => pc.pin_id))]
+      .filter(id => id !== excludePinId);
+
+    if (matchingPinIds.length === 0) return [];
+
+    // Fetch pins
+    const { data, error } = await supabase
+      .from('pins')
+      .select(
+        `
+        id,
+        user_id,
+        title,
+        description,
+        image_url,
+        image_width,
+        image_height,
+        image_color,
+        source_url,
+        category,
+        created_at,
+        updated_at
+      `
+      )
+      .in('id', matchingPinIds)
+      .order('created_at', { ascending: false })
+      .limit(limit);
+
+    if (error) {
+      console.error('Error fetching pins by category:', error);
+      return [];
+    }
+
+    if (!data) return [];
+
+    // Fetch user profiles
+    const userIds = [...new Set(data.map(pin => pin.user_id))];
+    const { data: profiles } = await supabase
+      .from('user_profiles')
+      .select('*')
+      .in('user_id', userIds);
+
+    const profileMap = new Map(
+      (profiles || []).map(p => [p.user_id, p])
+    );
+
+    // Fetch categories for these pins
+    const pinIds = data.map(pin => pin.id);
+    const categoriesMap = await getCategoriesForPins(pinIds);
+
+    return data.map((pin: Pin) =>
+      convertPinToPhoto(
+        pin,
+        profileMap.get(pin.user_id) || undefined,
+        categoriesMap.get(pin.id)
+      )
+    );
+  } catch (error) {
+    console.error('Error in fetchPinsByCategory:', error);
     return [];
   }
 };
@@ -182,10 +289,14 @@ export const fetchUserPins = async (userId: string): Promise<Photo[]> => {
       .eq('user_id', userId)
       .single();
 
+    const pinIds = data.map(pin => pin.id);
+    const categoriesMap = await getCategoriesForPins(pinIds);
+
     return data.map((pin: Pin) =>
       convertPinToPhoto(
         pin,
-        profileData || undefined
+        profileData || undefined,
+        categoriesMap.get(pin.id)
       )
     );
   } catch (error) {
@@ -194,47 +305,32 @@ export const fetchUserPins = async (userId: string): Promise<Photo[]> => {
   }
 };
 
-// Internal helper to allow temporary fallback while the new saved_images table rolls out
-const withSavedTable = async <T extends { data?: any; error?: any }>(
-  handler: (table: 'saved_images' | 'saved_pins') => Promise<T>
-): Promise<T> => {
-  const primary = await handler('saved_images');
-  if ((primary as any)?.error && (primary as any).error.message?.includes('saved_images')) {
-    console.warn('saved_images table unavailable, falling back to saved_pins');
-    return handler('saved_pins');
-  }
-  return primary;
-};
-
-// Fetch user's saved pins (persisted in saved_images table)
+// Fetch user's saved pins (persisted in saved_pins table)
 export const fetchSavedPins = async (userId: string): Promise<Photo[]> => {
   try {
-    const { data, error } = await withSavedTable(async (table) => {
-      const response = await supabase
-        .from(table)
-        .select(
-          `
-          pin_id,
-          pins (
-            id,
-            user_id,
-            title,
-            description,
-            image_url,
-            image_width,
-            image_height,
-            image_color,
-            source_url,
-            category,
-            created_at,
-            updated_at
-          )
+    const { data, error } = await supabase
+      .from('saved_pins')
+      .select(
         `
+        pin_id,
+        pins (
+          id,
+          user_id,
+          title,
+          description,
+          image_url,
+          image_width,
+          image_height,
+          image_color,
+          source_url,
+          category,
+          created_at,
+          updated_at
         )
-        .eq('user_id', userId)
-        .order('saved_at', { ascending: false });
-      return response;
-    });
+      `
+      )
+      .eq('user_id', userId)
+      .order('saved_at', { ascending: false });
 
     if (error) {
       console.error('Error fetching saved pins:', error);
@@ -262,16 +358,19 @@ export const fetchSavedPins = async (userId: string): Promise<Photo[]> => {
       (profiles || []).map(p => [p.user_id, p])
     );
 
-    return data
-      .map((saved: SavedPinRow) => {
-        const pin = saved.pins?.[0];
-        if (!pin) return null;
-        return convertPinToPhoto(
-          pin,
-          profileMap.get(pin.user_id) || undefined
-        );
-      })
-      .filter((photo): photo is Photo => photo !== null);
+    const validPins = data
+      .map((saved: SavedPinRow) => saved.pins?.[0])
+      .filter((pin): pin is Pin => pin != null);
+    const pinIds = validPins.map(pin => pin.id);
+    const categoriesMap = await getCategoriesForPins(pinIds);
+
+    return validPins.map((pin: Pin) =>
+      convertPinToPhoto(
+        pin,
+        profileMap.get(pin.user_id) || undefined,
+        categoriesMap.get(pin.id)
+      )
+    );
   } catch (error) {
     console.error('Error in fetchSavedPins:', error);
     return [];
@@ -287,16 +386,27 @@ export const createPin = async (
   description?: string,
   category?: string,
   imageColor?: string,
-  sourceUrl?: string
+  sourceUrl?: string,
+  categoryIds?: string[]
 ): Promise<Pin | null> => {
   try {
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) throw new Error('User not authenticated');
 
     let finalCategory = category;
-    if (!finalCategory) {
+    let finalCategoryIds = categoryIds;
+
+    if (!finalCategory && (!finalCategoryIds || finalCategoryIds.length === 0)) {
       const aiTags = await generateTagsForImage(imageUrl, title, description);
       finalCategory = aiTags.join(', ');
+      finalCategoryIds = await ensureCategoriesExist(aiTags);
+    } else if (finalCategoryIds && finalCategoryIds.length > 0 && !finalCategory) {
+      // Build comma-separated string from category IDs for backward compat
+      const { data: cats } = await supabase
+        .from('categories')
+        .select('name')
+        .in('id', finalCategoryIds);
+      finalCategory = (cats || []).map(c => c.name).join(', ');
     }
 
     const { data, error } = await supabase
@@ -320,9 +430,81 @@ export const createPin = async (
       return null;
     }
 
+    // Write to junction table
+    if (finalCategoryIds && finalCategoryIds.length > 0 && data) {
+      await setPinCategories(data.id, finalCategoryIds);
+    }
+
     return data;
   } catch (error) {
     console.error('Error in createPin:', error);
+    return null;
+  }
+};
+
+// Update an existing pin
+export const updatePin = async (
+  pinId: string,
+  updates: {
+    title?: string;
+    description?: string;
+    category?: string;
+    sourceUrl?: string;
+    altDescription?: string;
+    categoryIds?: string[];
+    imageUrl?: string;
+    imageWidth?: number;
+    imageHeight?: number;
+  }
+): Promise<Pin | null> => {
+  try {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) throw new Error('User not authenticated');
+
+    const updateData: Record<string, unknown> = {
+      updated_at: new Date().toISOString(),
+    };
+
+    if (updates.title !== undefined) updateData.title = updates.title;
+    if (updates.description !== undefined) updateData.description = updates.description;
+    if (updates.sourceUrl !== undefined) updateData.source_url = updates.sourceUrl;
+    if (updates.altDescription !== undefined) updateData.alt_description = updates.altDescription;
+    if (updates.imageUrl !== undefined) updateData.image_url = updates.imageUrl;
+    if (updates.imageWidth !== undefined) updateData.image_width = updates.imageWidth;
+    if (updates.imageHeight !== undefined) updateData.image_height = updates.imageHeight;
+
+    // Handle category updates - build comma string for backward compat
+    if (updates.categoryIds !== undefined) {
+      const { data: cats } = await supabase
+        .from('categories')
+        .select('name')
+        .in('id', updates.categoryIds);
+      updateData.category = (cats || []).map(c => c.name).join(', ');
+    } else if (updates.category !== undefined) {
+      updateData.category = updates.category;
+    }
+
+    const { data, error } = await supabase
+      .from('pins')
+      .update(updateData)
+      .eq('id', pinId)
+      .eq('user_id', user.id)
+      .select()
+      .single();
+
+    if (error) {
+      console.error('Error updating pin:', error);
+      return null;
+    }
+
+    // Update junction table
+    if (updates.categoryIds !== undefined && data) {
+      await setPinCategories(pinId, updates.categoryIds);
+    }
+
+    return data;
+  } catch (error) {
+    console.error('Error in updatePin:', error);
     return null;
   }
 };
@@ -391,33 +573,26 @@ export const savePin = async (pinId: string): Promise<boolean> => {
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) throw new Error('User not authenticated');
 
-    // First check if already saved
-    const { data: existing } = await withSavedTable(async (table) => {
-      const response = await supabase
-        .from(table)
-        .select('id')
-        .eq('user_id', user.id)
-        .eq('pin_id', pinId)
-        .maybeSingle();
-      return response;
-    });
+    const { data: existing } = await supabase
+      .from('saved_pins')
+      .select('id')
+      .eq('user_id', user.id)
+      .eq('pin_id', pinId)
+      .maybeSingle();
 
     if (existing) {
       console.log('Pin already saved');
       return true;
     }
 
-    const { data, error } = await withSavedTable(async (table) => {
-      const response = await supabase
-        .from(table)
-        .insert({
-          user_id: user.id,
-          pin_id: pinId,
-        })
-        .select()
-        .single();
-      return response;
-    });
+    const { data, error } = await supabase
+      .from('saved_pins')
+      .insert({
+        user_id: user.id,
+        pin_id: pinId,
+      })
+      .select()
+      .single();
 
     if (error) {
       console.error('Error saving pin:', error);
@@ -438,14 +613,11 @@ export const unsavePin = async (pinId: string): Promise<boolean> => {
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) throw new Error('User not authenticated');
 
-    const { error } = await withSavedTable(async (table) => {
-      const response = await supabase
-        .from(table)
-        .delete()
-        .eq('pin_id', pinId)
-        .eq('user_id', user.id);
-      return response;
-    });
+    const { error } = await supabase
+      .from('saved_pins')
+      .delete()
+      .eq('pin_id', pinId)
+      .eq('user_id', user.id);
 
     if (error) {
       console.error('Error unsaving pin:', error);
@@ -466,15 +638,12 @@ export const isPinSaved = async (pinId: string): Promise<boolean> => {
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) return false;
 
-    const { data, error } = await withSavedTable(async (table) => {
-      const response = await supabase
-        .from(table)
-        .select('id')
-        .eq('pin_id', pinId)
-        .eq('user_id', user.id)
-        .maybeSingle();
-      return response;
-    });
+    const { data, error } = await supabase
+      .from('saved_pins')
+      .select('id')
+      .eq('pin_id', pinId)
+      .eq('user_id', user.id)
+      .maybeSingle();
 
     if (error && error.code !== 'PGRST116') {
       console.error('Error checking if pin is saved:', error);
@@ -516,6 +685,11 @@ export const fetchPinById = async (pinId: string): Promise<Photo | null> => {
       return null;
     }
 
+    if (error) {
+      console.error('Error fetching pin:', error);
+      return null;
+    }
+
     // Fetch user profile separately
     const { data: profileData } = await supabase
       .from('user_profiles')
@@ -523,9 +697,13 @@ export const fetchPinById = async (pinId: string): Promise<Photo | null> => {
       .eq('user_id', data.user_id)
       .single();
 
+    // Fetch categories for this pin
+    const categoriesMap = await getCategoriesForPins([data.id]);
+
     return convertPinToPhoto(
       data,
-      profileData || undefined
+      profileData || undefined,
+      categoriesMap.get(data.id)
     );
   } catch (error) {
     console.error('Error in fetchPinById:', error);

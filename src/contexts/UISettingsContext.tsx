@@ -125,8 +125,14 @@ export function UISettingsProvider({ children }: { children: ReactNode }) {
         .select('settings')
         .eq('user_id', userId)
         .maybeSingle();
-      if (error && error.code !== 'PGRST116') {
-        console.error('Failed to fetch remote UI settings', error);
+      if (error) {
+        if (error.code === 'PGRST116') {
+          // No preferences found, that's okay
+        } else if (error.message?.includes('404') || error.message?.includes('does not exist')) {
+          console.warn('ui_preferences table not found. Skipping remote settings.');
+        } else {
+          console.error('Failed to fetch remote UI settings', error);
+        }
         return;
       }
       if (!cancelled && data?.settings) {

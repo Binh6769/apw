@@ -1,5 +1,9 @@
 export interface Photo {
   id: string;
+  title?: string;              // Pin title
+  description?: string;        // Pin description
+  category?: string;          // Pin category
+  source_url?: string;        // Source link
   urls: {
     raw: string;
     full: string;
@@ -21,4 +25,5 @@ export interface Photo {
     };
   };
   tags?: string[];
+  created_at?: string; // Timestamp when image was fetched/created
 }

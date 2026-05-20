@@ -20,65 +20,38 @@ export default function AlbumDetail() {
   const [sortBy, setSortBy] = useState<SortBy>('custom');
   const [searchQuery, setSearchQuery] = useState('');
 
-  useEffect(() => {
-    if (!albumId) return;
-    loadAlbumDetails();
-  }, [albumId]);
-
-  const loadAlbumDetails = async () => {
-    try {
-      setLoading(true);
-      await loadAlbum(albumId!);
-      // Convert album photos to Photo objects
-      const photoObjects: Photo[] = (currentAlbumPhotos || []).map((p: AlbumPhoto) => ({
-        id: p.photo_id,
-        urls: {
-          regular: p.photo_url,
-          raw: p.photo_url,
-          full: p.photo_url,
-          small: p.photo_url,
-          thumb: p.photo_url
-        },
-        alt_description: p.photo_title || '',
-        width: p.photo_width || 400,
-        height: p.photo_height || 600,
-        color: p.photo_color || '#e5e7eb',
-        user: { name: 'Album', username: 'album', profile_image: { small: '', medium: '', large: '' } },
-        likes: 0,
-        description: p.photo_title
-      } as Photo));
-      setPhotos(photoObjects);
-    } catch (error) {
-      console.error('Error loading album:', error);
-      showToast('Failed to load album', 'error');
-    } finally {
-      setLoading(false);
-    }
+  const convertAlbumPhotosToPhotos = (albumPhotos: AlbumPhoto[]): Photo[] => {
+    return albumPhotos.map((p: AlbumPhoto) => ({
+      id: p.photo_id,
+      urls: {
+        regular: p.photo_url,
+        raw: p.photo_url,
+        full: p.photo_url,
+        small: p.photo_url,
+        thumb: p.photo_url
+      },
+      alt_description: p.photo_title || '',
+      width: p.photo_width || 400,
+      height: p.photo_height || 600,
+      color: p.photo_color || '#e5e7eb',
+      user: { name: 'Album', username: 'album', profile_image: { small: '', medium: '', large: '' } },
+      likes: 0,
+      description: p.photo_title
+    } as Photo));
   };
 
-  // Update photos when currentAlbumPhotos changes
   useEffect(() => {
-    if (currentAlbumPhotos && currentAlbumPhotos.length > 0) {
-      const photoObjects: Photo[] = currentAlbumPhotos.map((p: AlbumPhoto) => ({
-        id: p.photo_id,
-        urls: {
-          regular: p.photo_url,
-          raw: p.photo_url,
-          full: p.photo_url,
-          small: p.photo_url,
-          thumb: p.photo_url
-        },
-        alt_description: p.photo_title || '',
-        width: p.photo_width || 400,
-        height: p.photo_height || 600,
-        color: p.photo_color || '#e5e7eb',
-        user: { name: 'Album', username: 'album', profile_image: { small: '', medium: '', large: '' } },
-        likes: 0,
-        description: p.photo_title
-      } as Photo));
-      setPhotos(photoObjects);
+    if (!albumId) return;
+    setLoading(true);
+    loadAlbum(albumId).finally(() => setLoading(false));
+  }, [albumId, loadAlbum]);
+
+  // Update photos when currentAlbumPhotos changes (handles both initial load and updates)
+  useEffect(() => {
+    if (!loading && currentAlbumPhotos) {
+      setPhotos(convertAlbumPhotosToPhotos(currentAlbumPhotos));
     }
-  }, [currentAlbumPhotos]);
+  }, [currentAlbumPhotos, loading]);
 
 
   const handleRemovePhoto = async (photoId: string) => {
@@ -89,7 +62,7 @@ export default function AlbumDetail() {
       const albumPhoto = currentAlbumPhotos.find(p => p.photo_id === photoId);
       if (albumPhoto) {
         await removePhotoFromCurrentAlbum(albumPhoto.id);
-        setPhotos(photos.filter(p => p.id !== photoId));
+        setPhotos(prev => prev.filter(p => p.id !== photoId));
         showToast('Image removed from album', 'success');
       }
     } catch (error) {
@@ -133,10 +106,9 @@ export default function AlbumDetail() {
           (b.alt_description || '').localeCompare(a.alt_description || '')
         );
       case 'newest':
-        // Newest would be reversed order (or based on added_at if we had it)
-        return sorted.reverse();
-      case 'oldest':
         return sorted;
+      case 'oldest':
+        return sorted.reverse();
       case 'custom':
       default:
         return sorted;
@@ -145,20 +117,26 @@ export default function AlbumDetail() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-anime-bg flex items-center justify-center text-anime-text">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-anime-primary"></div>
+      <div className="min-h-screen bg-anime-bg flex items-center justify-center text-anime-text pt-20">
+        <div className="flex flex-col items-center gap-3">
+          <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-anime-primary"></div>
+          <p className="text-gray-400 text-sm">Loading album...</p>
+        </div>
       </div>
     );
   }
 
   if (!currentAlbum) {
     return (
-      <div className="min-h-screen bg-anime-bg flex items-center justify-center text-anime-text">
+      <div className="min-h-screen bg-anime-bg flex items-center justify-center text-anime-text pt-20">
         <div className="text-center">
-          <p className="text-gray-400 text-lg mb-4">Album not found</p>
+          <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-anime-surface flex items-center justify-center">
+            <ImageIcon className="w-8 h-8 text-gray-500" />
+          </div>
+          <p className="text-gray-300 text-lg mb-4 font-medium">Album not found</p>
           <button
             onClick={() => navigate('/albums')}
-            className="px-6 py-2 bg-anime-primary text-white rounded-lg hover:bg-anime-secondary"
+            className="px-5 py-2.5 bg-anime-primary text-white rounded-xl hover:bg-anime-secondary text-sm font-medium transition-colors"
           >
             Back to Albums
           </button>
@@ -168,22 +146,22 @@ export default function AlbumDetail() {
   }
 
   return (
-    <div className="min-h-screen bg-anime-bg py-8 text-anime-text pt-24">
+    <div className="min-h-screen bg-anime-bg py-6 text-anime-text pt-20">
       <div className="max-w-7xl mx-auto px-4">
         {/* Header */}
-        <div className="mb-8">
+        <div className="mb-6">
           <button
             onClick={() => navigate('/albums')}
-            className="flex items-center gap-2 text-anime-primary hover:text-anime-secondary mb-4 font-semibold transition-colors"
+            className="inline-flex items-center gap-2 text-anime-primary hover:text-anime-secondary mb-4 font-medium transition-colors text-sm"
           >
-            <ArrowLeft className="w-5 h-5" />
+            <ArrowLeft className="w-4 h-4" />
             Back to Albums
           </button>
 
-          <div className="flex items-start gap-6">
+          <div className="flex items-center gap-4">
             {/* Album Cover */}
             {currentAlbum.cover_image_url && (
-              <div className="w-32 h-32 rounded-lg overflow-hidden flex-shrink-0">
+              <div className="w-20 h-20 rounded-2xl overflow-hidden flex-shrink-0 shadow-lg">
                 <img
                   src={currentAlbum.cover_image_url}
                   alt={currentAlbum.name}
@@ -193,55 +171,60 @@ export default function AlbumDetail() {
             )}
 
             {/* Album Info */}
-            <div className="flex-1">
-              <h1 className="text-4xl font-bold text-anime-text mb-2">{currentAlbum.name}</h1>
+            <div className="flex-1 min-w-0">
+              <h1 className="text-2xl font-bold text-anime-text truncate">{currentAlbum.name}</h1>
               {currentAlbum.description && (
-                <p className="text-gray-300 mb-3">{currentAlbum.description}</p>
+                <p className="text-gray-400 text-sm mt-1 truncate">{currentAlbum.description}</p>
               )}
-              <p className="text-sm text-gray-500">
-                {sortedPhotos.length} image{sortedPhotos.length !== 1 ? 's' : ''} in album
+              <p className="text-xs text-gray-500 mt-2">
+                {sortedPhotos.length} image{sortedPhotos.length !== 1 ? 's' : ''}
               </p>
             </div>
           </div>
         </div>
 
         {/* Controls */}
-        <div className="mb-6 flex gap-3 flex-col md:flex-row">
+        <div className="mb-6 flex gap-3 flex-col sm:flex-row">
           {/* Search */}
           <div className="flex-1 relative">
-            <Search className="absolute left-4 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
+            <Search className="absolute left-3.5 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-500" />
             <input
               type="text"
-              placeholder="Search images in this album..."
+              placeholder="Search images..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full pl-12 pr-4 py-2.5 rounded-lg border border-anime-border bg-anime-surface text-anime-text focus:outline-none focus:ring-1 focus:ring-anime-primary"
+              className="w-full pl-10 pr-4 py-2 rounded-xl border border-anime-border bg-anime-surface text-anime-text text-sm focus:outline-none focus:ring-2 focus:ring-anime-primary"
             />
           </div>
 
           {/* Sort */}
-          <div className="flex items-center gap-2">
-            <SortAsc className="w-5 h-5 text-gray-400" />
+          <div className="flex items-center gap-2 shrink-0">
+            <SortAsc className="w-4 h-4 text-gray-500" />
             <select
               value={sortBy}
               onChange={(e) => setSortBy(e.target.value as SortBy)}
-              className="px-4 py-2.5 rounded-lg border border-anime-border bg-anime-surface text-anime-text focus:outline-none focus:ring-1 focus:ring-anime-primary cursor-pointer"
+              className="px-3 py-2 rounded-xl border border-anime-border bg-anime-surface text-anime-text text-sm focus:outline-none focus:ring-2 focus:ring-anime-primary cursor-pointer"
             >
-              <option value="custom">Custom Order</option>
+              <option value="custom">Custom</option>
               <option value="az">A → Z</option>
               <option value="za">Z → A</option>
-              <option value="newest">Newest First</option>
-              <option value="oldest">Oldest First</option>
+              <option value="newest">Newest</option>
+              <option value="oldest">Oldest</option>
             </select>
           </div>
         </div>
 
         {/* Images Grid */}
         {sortedPhotos.length === 0 ? (
-          <div className="bg-anime-surface rounded-lg shadow-sm border border-anime-border p-12 text-center text-anime-text">
-            <ImageIcon className="w-12 h-12 text-gray-400 mx-auto mb-4" />
-            <p className="text-gray-400 text-lg">
-              {searchQuery ? 'No images found matching your search.' : 'No images in this album yet.'}
+          <div className="bg-anime-surface rounded-2xl border border-anime-border p-12 text-center">
+            <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-anime-bg flex items-center justify-center">
+              <ImageIcon className="w-8 h-8 text-gray-500" />
+            </div>
+            <p className="text-gray-300 font-medium">
+              {searchQuery ? 'No images found' : 'No images yet'}
+            </p>
+            <p className="text-gray-500 text-sm mt-1">
+              {searchQuery ? 'Try a different search term' : 'Add photos to this album from the browse page'}
             </p>
           </div>
         ) : (

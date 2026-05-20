@@ -1,7 +1,8 @@
 import { useEffect, useMemo, useRef, useCallback, useState } from 'react';
 import { useInfiniteQuery } from '@tanstack/react-query';
 import { useSearchParams, useNavigate } from 'react-router-dom';
-import { fetchPhotos } from '../api/unsplash';
+import { fetchPinsFromSupabase } from '../services/pinsService';
+import { fetchAllCategories, type Category } from '../services/categoriesService';
 import { MasonryGrid } from '../components/MasonryGrid';
 import { Header } from '../components/Header';
 import { SidebarFilter } from '../components/SidebarFilter';
@@ -19,22 +20,24 @@ export function Home() {
   const [selectedTopic, setSelectedTopic] = useState('anime');
   const [showTopicBar, setShowTopicBar] = useState(false);
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+  const [dbCategories, setDbCategories] = useState<Category[]>([]);
 
   const DEFAULT_TOPIC = 'anime';
-  const TOPIC_OPTIONS = [
-    { id: 'anime', label: 'Anime' },
-    { id: 'shonen', label: 'Shonen' },
-    { id: 'romance', label: 'Romance' },
-    { id: 'fantasy', label: 'Fantasy' },
-    { id: 'slice of life', label: 'Slice of Life' },
-    { id: 'mecha', label: 'Mecha' },
-    { id: 'cyberpunk', label: 'Cyberpunk' },
+
+  const topicOptions = [
+    { id: 'all', label: 'All' },
+    ...dbCategories.map(c => ({ id: c.name.toLowerCase(), label: c.name })),
   ];
+
+  useEffect(() => {
+    fetchAllCategories().then(setDbCategories);
+  }, []);
 
   const preferredTopic = (user?.user_metadata?.preferredTopic as string | undefined) || DEFAULT_TOPIC;
   const isNewUser = Boolean(user?.user_metadata?.isNewUser);
-  const effectiveQuery = query || selectedTopic || DEFAULT_TOPIC;
+  const effectiveQuery = query || (selectedTopic === 'all' ? '' : selectedTopic) || '';
 
+  // Only fetch user uploads from Supabase - NO external APIs
   const {
     data,
     fetchNextPage,
@@ -43,8 +46,8 @@ export function Home() {
     status,
     refetch
   } = useInfiniteQuery({
-    queryKey: ['photos', effectiveQuery],
-    queryFn: ({ pageParam = 1 }) => fetchPhotos(pageParam, effectiveQuery),
+    queryKey: ['pins', effectiveQuery],
+    queryFn: ({ pageParam = 1 }) => fetchPinsFromSupabase(pageParam, 20, effectiveQuery),
     initialPageParam: 1,
     getNextPageParam: (lastPage, allPages) => {
       if (!lastPage || lastPage.length === 0) return undefined;
@@ -63,7 +66,11 @@ export function Home() {
       setSelectedTopic(query);
       return;
     }
-    setSelectedTopic(preferredTopic);
+    if (preferredTopic && preferredTopic !== 'anime') {
+      setSelectedTopic(preferredTopic);
+    } else {
+      setSelectedTopic('all');
+    }
   }, [query, preferredTopic]);
 
   useEffect(() => {
@@ -119,10 +126,12 @@ export function Home() {
 
   const handleTopicSelect = async (topicId: string) => {
     setSelectedTopic(topicId);
-    if (topicId && topicId !== query) {
+    if (topicId === 'all' || topicId === '') {
+      navigate('/', { replace: true });
+    } else if (topicId !== query) {
       navigate(`/?q=${encodeURIComponent(topicId)}`, { replace: true });
     }
-    if (user && isNewUser) {
+    if (user && isNewUser && topicId !== 'all') {
       try {
         await supabase.auth.updateUser({
           data: {
@@ -142,6 +151,26 @@ export function Home() {
     <div className="min-h-screen bg-anime-bg text-anime-text pt-20">
       <Header />
 
+      {/* Category Filter Tabs */}
+      <div className="sticky top-[64px] z-30 bg-anime-bg/95 backdrop-blur-sm border-b border-anime-border">
+        <div className="flex items-center gap-2 px-4 py-3 overflow-x-auto scrollbar-hide">
+          {topicOptions.map((topic) => (
+            <button
+              key={topic.id}
+              onClick={() => handleTopicSelect(topic.id)}
+              className={`flex-shrink-0 px-4 py-2 rounded-full text-sm font-semibold transition-all whitespace-nowrap ${
+                selectedTopic === topic.id
+                  ? 'bg-anime-primary text-white shadow-md'
+                  : 'bg-anime-surface border border-anime-border text-anime-muted hover:bg-anime-surface-muted'
+              }`}
+              type="button"
+            >
+              {topic.label}
+            </button>
+          ))}
+        </div>
+      </div>
+
       <div className="flex">
         <SidebarFilter 
           isOpen={isSidebarOpen} 
@@ -159,7 +188,7 @@ export function Home() {
                   <h2 className="text-xl font-semibold text-anime-text">Choose an anime topic to personalize your feed</h2>
                 </div>
                 <div className="flex flex-wrap gap-2">
-                  {TOPIC_OPTIONS.map((topic) => (
+                  {topicOptions.map((topic) => (
                     <button
                       key={topic.id}
                       onClick={() => handleTopicSelect(topic.id)}
@@ -195,7 +224,21 @@ export function Home() {
           </div>
         ) : photos.length === 0 ? (
           <div className="text-center py-20 text-anime-muted">
-            {query ? 'no image available' : 'No suggested content available at the moment.'}
+            {query ? 'no image available' : 'No images found. Upload your own!'}
+            <div className="mt-4 flex justify-center gap-3">
+              <button 
+                onClick={() => navigate('/create-pin')}
+                className="px-6 py-3 bg-anime-primary hover:bg-anime-secondary text-white rounded-full font-semibold transition-colors"
+              >
+                Upload Image
+              </button>
+              <button 
+                onClick={() => navigate('/saved')}
+                className="px-6 py-3 bg-anime-surface border border-anime-border text-anime-text rounded-full font-semibold transition-colors hover:bg-anime-surface-muted"
+              >
+                View Saved
+              </button>
+            </div>
           </div>
         ) : (
           <>
